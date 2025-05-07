@@ -1,3 +1,7 @@
 .env
 /.venv
+<<<<<<< HEAD
 /.idea
+=======
+.idea
+>>>>>>> 92760f8082a628895aff8fcf84af49e86f3fb293
