@@ -7,7 +7,7 @@ from core.config_dir.config import UVICORN_HOST, UVICORN_PORT
 async def main():
     # code-initialize another services
 
-    uvicorn.run('main:app', host=UVICORN_HOST, port=UVICORN_PORT)
+    uvicorn.run('core.main:app', host=UVICORN_HOST, port=UVICORN_PORT)
 
 
 
