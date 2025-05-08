@@ -1,13 +1,35 @@
-import os
+from functools import lru_cache
 
-from dotenv import load_dotenv
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PG_USER=os.getenv('PG_USER')
-PG_PASSWORD=os.getenv('PG_PASSWORD')
-PG_DB=os.getenv('PG_DB')
-PG_HOST=os.getenv('PG_HOST')
-PG_PORT=os.getenv('PG_PORT')
+from asyncpg import create_pool
 
-UVICORN_HOST=os.getenv('UVICORN_HOST')
-UVICORN_PORT=os.getenv('UVICORN_PORT')
+
+class Settings(BaseSettings):
+    pythonpath: str
+    pg_user: str
+    pg_password: str
+    pg_db: str
+    pg_host: str
+    pg_port: int
+    uvicorn_host: str
+
+    model_config = SettingsConfigDict(env_file='.env')
+
+@lru_cache
+def get_env_vars():
+    return Settings()
+
+
+async def set_session():
+    connection = await create_pool(
+        user=get_env_vars().pg_user,
+        password=get_env_vars().pg_password,
+        host=get_env_vars().pg_host,
+        port=get_env_vars().pg_port,
+        database=get_env_vars().pg_db,
+        command_timeout=60
+    )
+    async with connection.acquire() as session:
+        yield session
+
