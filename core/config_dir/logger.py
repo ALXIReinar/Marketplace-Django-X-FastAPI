@@ -1,3 +1,6 @@
+from collections import namedtuple
+from dataclasses import dataclass
+
 methods = {
     "DELETE": "\033[91m DELETE \033[0m",
     "GET": "\033[92m GET \033[0m",
@@ -7,3 +10,8 @@ methods = {
     "POST": "\033[94m POST \033[0m",
     "PUT": "\033[93m PUT \033[0m"
 }
+
+@dataclass
+class Tags:
+    users = 'Пользователи'
+    products = 'Товары'

@@ -1,17 +1,36 @@
+from datetime import timedelta
 from functools import lru_cache
+from pathlib import Path
 
+from passlib.context import CryptContext
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from asyncpg import create_pool
 
 
+WORKDIR = Path(__file__).resolve().parent.parent.parent
+encryption = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+
+class AuthConfig(BaseModel):
+    private_key: Path = WORKDIR / 'keys' / 'private_jwt.pem'
+    public_key: Path = WORKDIR / 'keys' / 'public_jwt.pem'
+    algorithm: str = 'RS256'
+    ttl_aT: timedelta = timedelta(minutes=15)
+    ttl_rT: timedelta = timedelta(days=30)
+
+
 class Settings(BaseSettings):
-    pythonpath: str
+    abs_path: str = str(WORKDIR)
+
     pg_user: str
     pg_password: str
     pg_db: str
     pg_host: str
     pg_port: int
+
+    JWTs: AuthConfig = AuthConfig()
     uvicorn_host: str
 
     model_config = SettingsConfigDict(env_file='.env')
