@@ -14,7 +14,7 @@ async def preview_products(user: UserBase, pagen: PagenDep, db: PgSqlDep):
      """
      Учесть фактор отсутствия/наличия! авторизации
      """
-     records = await db.welcome_page_select(user.id ,pagen.offset, pagen.limit)
+     records = await db.welcome_page_select(user.id, pagen.offset, pagen.limit)
      return {'products': records.products,
              'counters': [
                   {'favorite': records.favorite}, {'ordered_items': records.ordered_items}]

@@ -19,4 +19,10 @@ class UserLogInSchema(UserDBSchema):
 
 class UserRegSchema(UserDBSchema):
     passw: Annotated[str, BeforeValidator(validate_password)]
-    name: Annotated[str| None, Field(default='Пользователь Pied Market')]
+    name: Annotated[str | None, Field(default='Пользователь Pied Market')]
+
+
+class TokenPayloadSchema(BaseModel):
+    id: int
+    user_agent: str = Field(max_length=512)
+    ip: str = Field(max_length=39)

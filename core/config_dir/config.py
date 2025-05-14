@@ -2,6 +2,7 @@ from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 
+from fastapi import FastAPI
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,8 @@ from asyncpg import create_pool
 
 
 WORKDIR = Path(__file__).resolve().parent.parent.parent
+
+app = FastAPI()
 encryption = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 

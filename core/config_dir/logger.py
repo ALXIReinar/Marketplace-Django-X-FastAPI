@@ -1,4 +1,3 @@
-from collections import namedtuple
 from dataclasses import dataclass
 
 methods = {
@@ -15,3 +14,15 @@ methods = {
 class Tags:
     users = 'Пользователи'
     products = 'Товары'
+
+
+
+apis_dont_need_auth = {
+    '/openapi.json',
+    '/docs',
+
+    '/api/test/no-need_auth',
+
+    '/api/users/sign_up',
+    '/api/users/login'
+}

@@ -12,13 +12,11 @@ class PgSql:
         self.conn = conn
 
     async def welcome_page_select(self, user_id, offset, limit):
-        """
-        учесть, что потом к этому запросу нужно будет прикручивать выборку счётчиков:
-        для сообщений чата, заказов, избранное, корзина и т.п
-        """
         query_layout_products = """SELECT p.id, p.seller_id, p.prd_name, p.cost, img.path FROM products p
                    JOIN images_prdts img ON p.id = img.prd_id
-                   WHERE p.category IN (SELECT category FROM preferences_users WHERE user_id = $1)
+                   WHERE p.category IN (
+                       SELECT category FROM preferences_users WHERE user_id = $1
+                       ORDER BY counter DESC LIMIT 3)
                    GROUP BY p.id, p.seller_id, p.prd_name, p.cost, img.path 
                    OFFSET $2 LIMIT $3"""
 
@@ -60,15 +58,27 @@ class PgSql:
             user_id: int,
             iat: int,
             exp: int,
-            encoded_rT: str
+            user_agent: str,
+            ip: str,
+            hashed_rT: str
     ):
         """
         Иметь в виду, что придётся добавлять поля: ip, user_agent
         """
-        hashed = encryption.hash(encoded_rT)
-        query = 'INSERT INTO sessions_users (session_id, user_id, iat, exp, refresh_token) VALUES($1,$2,$3,$4,$5)'
-        await self.conn.execute(query, session_id, user_id, iat, exp, hashed)
+        query = 'INSERT INTO sessions_users (session_id, user_id, iat, exp, refresh_token, user_agent, ip) VALUES($1,$2,$3,$4,$5,$6,$7)'
+        await self.conn.execute(query, session_id, user_id, iat, exp, hashed_rT, user_agent, ip)
 
+
+    async def get_actual_rt(self, user_id: int, session_id: str):
+        query = '''SELECT refresh_token FROM sessions_users
+                   WHERE user_id = $1 AND session_id = $2 AND "exp" > now() AND seance IS true'''
+        res = await self.conn.fetchrow(query, user_id, session_id)
+        return res
+
+    async def all_seances_user(self, user_id: int, session_id: str):
+        query = 'SELECT user_agent, ip FROM sessions_users WHERE user_id = $1 AND session_id = $2'
+        res = await self.conn.fetch(query, user_id, session_id)
+        return res
 
 
 async def get_pgsql_dependency(conn: Annotated[Connection, Depends(set_session)]):
