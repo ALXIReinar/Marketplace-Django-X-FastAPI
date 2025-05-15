@@ -26,6 +26,7 @@ class AuthConfig(BaseModel):
 
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
+    frontend_space: str
 
     pg_user: str
     pg_password: str
