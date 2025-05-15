@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pedo_Market_players</title>
+    <title>Pied_Marketplace</title>
     <link rel="stylesheet" href="index.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs
+    /font-awesome/6.4.0/css/all.min.css">
     <link
       href="https://fonts.googleapis.com/css?family=
       Kaushan+Script|
@@ -16,28 +18,203 @@
     <div class="container">
       <div class="header_inner">
         <div class="logo">
-          Pedo Market
+          Pied Market
         </div>
-        <div class="search_form">
-        <form action="" method="get">
-          <input  name ="s" placeholder="Search product...." type="search" class="search-box">
-          <button type= "submit" class="Btn_search">Search</button>
-        </form>
-       </div>
+        <nav class="pop_up">
+          <a class="pop_up_nav " id="Category_link">Каталог</a>
+            <div class="dropdown-content">
+           <a href="#">Электроника</a>
+        <a href="#">Одежда</a>
+        <a href="#">Обувь</a>
+        <a href="#">Дом и сад</a>
+        <a href="#">Красота и здоровье</a>
+        <a href="#">Бытовая техника</a>
+        <a href="#">Спорт и отдых</a>
+        <a href="#">Строительство и ремонт</a>
+        <a href="#">Продукты питания</a>
+        <a href="#">Товары дял животных</a>
+        <a href="#">Книги</a>
+        <a href="#">Туризм,Рыбалка,Охото</a>
+        <a href="#">Автотовары</a>
+        <a href="#">Мебель</a>
+        <a href="#">Хобби и творчество</a>
+        <a href="#">Ювелирные украшения</a>
+        <a href="#">Аксесуары</a>
+        <a href="#">Игры и консоли</a>
+        <a href="#">Антикавриат и коллекционирование</a>
+        <a href="#">Цифровые Товары</a>
+        <a href="#">Бытовая химия и гигиена</a>
+        <a href="#">Музыка и видеох</a>
+        <a href="#">автомобили</a>
+        
+    </div>
+        </nav>
+        <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const categoryLink = document.getElementById('Category_link');
+        const popUpNav = document.querySelector('.pop_up');
+        categoryLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            popUpNav.classList.toggle('active');
+        });
+        document.addEventListener('click', function(e) {
+            if (!popUpNav.contains(e.target)) {
+                popUpNav.classList.remove('active');
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                popUpNav.classList.remove('active');
+            }
+        });
+    });
+</script>
+        <div class="search_container">
+        <input class="search_txt" type="text" name="" placeholder="Search product">
+        <button class="search_btn">
+         <img src="images/icons8-поиск-24.png" alt="">
+        </button>
+        </div>
           <nav class="nav_link">
-            <a class="nav__link" href="#">Order</a>
-            <a class="nav__link" href="#">basket</a>
-            <a class="nav__link" href="#">favorites</a>
-            <a class="nav__link" href="#">Chat</a>
-            <a class="nav__link" href="#">Profile</a>
-          </nav>
-      
-          
+            <a class="nav__link" href="#">Заказы</a>
+            <a class="nav__link" href="#">Корзина</a>  
+            <a class="nav__link" href="#">Избранное</a>
+            <a class="nav__link" href="#">Чат</a>
+            <a class="nav__link" href="#">Профиль</a>
+            
+          </nav>    
         </div>
       </div>
     </div>
   </header>
   <body>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  let currentPage = 1;
+  let isLoading = false;
+  let hasMore = true;
+  const container = document.getElementById('products-container');
+  const loadingIndicator = document.getElementById('loading-indicator');
+
+  
+  async function loadProducts() {
+    if (isLoading || !hasMore) return;
     
+    isLoading = true;
+    loadingIndicator.style.display = 'block';
+    
+    try {
+      const response = await fetch(`/api/products?page=${currentPage}`);
+      const data = await response.json();
+      
+      if (data.products && data.products.length > 0) {
+        renderProducts(data.products);
+        currentPage++;
+        hasMore = data.hasMore;
+      } else {
+        hasMore = false;
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки:', error);
+    } finally {
+      isLoading = false;
+      loadingIndicator.style.display = 'none';
+    }
+  }
+
+  
+  function renderProducts(products) {
+    const template = document.getElementById('product-template');
+    
+    products.forEach(product => {
+      const clone = template.content.cloneNode(true);
+      const card = clone.querySelector('.card');
+      
+     
+      card.dataset.id = product.id;
+      
+    
+      const img = clone.querySelector('.card__image-img');
+      img.src = product.image_url || 'images/default-product.jpg';
+      img.alt = product.name || 'Изображение товара';
+      img.onerror = function() {
+        this.src = 'images/default-product.jpg';
+      };
+      
+
+      const links = clone.querySelectorAll('a');
+      links.forEach(link => {
+        link.href = `/product/${product.id}`;
+      });
+      
+   
+      const label = clone.querySelector('.card__label');
+      if (product.discount_percent > 0) {
+        label.textContent = `-${product.discount_percent}%`;
+        label.style.display = 'block';
+      } else {
+        label.style.display = 'none';
+      }
+      
+    
+      const discountEl = clone.querySelector('.card__price--discount');
+      const commonEl = clone.querySelector('.card__price--common');
+      
+      if (product.discount_percent > 0) {
+        const discountPrice = product.price * (1 - product.discount_percent/100);
+        discountEl.textContent = `${Math.round(discountPrice).toLocaleString('ru-RU')} ₽`;
+        commonEl.textContent = `${product.price.toLocaleString('ru-RU')} ₽`;
+        commonEl.style.display = 'block';
+      } else {
+        discountEl.textContent = `${product.price.toLocaleString('ru-RU')} ₽`;
+        commonEl.style.display = 'none';
+      }
+      
+     
+      const titleEl = clone.querySelector('.card_title');
+      titleEl.textContent = product.name;
+      titleEl.href = `/product/${product.id}`;
+      
+      
+      const favBtn = clone.querySelector('.favorites');
+      favBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleFavorite(product.id);
+      });
+      
+      container.appendChild(clone);
+    });
+  }
+
+  window.addEventListener('scroll', () => {
+    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+    
+    if (scrollTop + clientHeight >= scrollHeight - 500) {
+      loadProducts();
+    }
+  });
+
+ 
+  function toggleFavorite(productId) {
+    fetch('/api/favorites', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productId })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Избранное обновлено:', data);
+    })
+    .catch(error => {
+      console.error('Ошибка:', error);
+    });
+  }
+
+  
+  loadProducts();
+});
+</script>
   </body>
 </html>
