@@ -162,6 +162,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 
 .idea/
+*.pem
 *.env
+*.backup
+*.sql
+.images/
+.keys/
 .vscode/
 .vs/
+.dumps/

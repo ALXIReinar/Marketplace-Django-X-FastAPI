@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 methods = {
     "DELETE": "\033[91m DELETE \033[0m",
     "GET": "\033[92m GET \033[0m",
@@ -6,4 +8,21 @@ methods = {
     "PATCH": "\033[94m PATCH \033[0m",
     "POST": "\033[94m POST \033[0m",
     "PUT": "\033[93m PUT \033[0m"
+}
+
+@dataclass
+class Tags:
+    users = 'Пользователи'
+    products = 'Товары'
+
+
+
+apis_dont_need_auth = {
+    '/openapi.json',
+    '/docs',
+
+    '/api/test/no-need_auth',
+
+    '/api/users/sign_up',
+    '/api/users/login'
 }
