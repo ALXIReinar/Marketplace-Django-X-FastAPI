@@ -23,7 +23,7 @@ app.add_middleware(LoggingTimeMiddleware)
 
 
 app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates', html=True), name='frontend')
-app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates/images'), name='pic_s_frontend')
+app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates/images'), name='pic_s')
 
 
 if __name__ == '__main__':

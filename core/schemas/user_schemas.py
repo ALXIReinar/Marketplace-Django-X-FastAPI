@@ -6,13 +6,8 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic import EmailStr
 
 
-class UserBase(BaseModel):
-    id: int = 1
-
-
 class UserDBSchema(BaseModel):
     email: EmailStr
-
 
 class UserLogInSchema(UserDBSchema):
     passw: str

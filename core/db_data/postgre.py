@@ -62,16 +62,13 @@ class PgSql:
             ip: str,
             hashed_rT: str
     ):
-        """
-        Иметь в виду, что придётся добавлять поля: ip, user_agent
-        """
         query = 'INSERT INTO sessions_users (session_id, user_id, iat, exp, refresh_token, user_agent, ip) VALUES($1,$2,$3,$4,$5,$6,$7)'
         await self.conn.execute(query, session_id, user_id, iat, exp, hashed_rT, user_agent, ip)
 
 
     async def get_actual_rt(self, user_id: int, session_id: str):
-        query = '''SELECT refresh_token FROM sessions_users
-                   WHERE user_id = $1 AND session_id = $2 AND "exp" > now() AND seance IS true'''
+        query = '''SELECT refresh_token, seance FROM sessions_users
+                   WHERE user_id = $1 AND session_id = $2 AND "exp" > now()'''
         res = await self.conn.fetchrow(query, user_id, session_id)
         return res
 

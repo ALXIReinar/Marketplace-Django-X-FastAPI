@@ -1,25 +1,28 @@
 from fastapi import APIRouter, Response, Request, HTTPException
 
-from core.config_dir.config import encryption
-from core.config_dir.logger import Tags
 from core.db_data.postgre import PgSqlDep
-from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema
 from core.utils.processing_data.jwt_processing import issue_aT_rT
+from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema
+from core.config_dir.config import encryption
+from core.config_dir.logger import log_event
+from core.utils.anything import Tags, Events, hide_log_param
 
-router = APIRouter(prefix='/api/users')
+router = APIRouter(prefix='/api/users', tags=[Tags.users])
 
 
 
-@router.post('/sign_up', tags=[Tags.users], summary="Регистрация")
-async def registration_user(creds: UserRegSchema, db: PgSqlDep):
+@router.post('/sign_up', summary="Регистрация")
+async def registration_user(creds: UserRegSchema, db: PgSqlDep, request: Request):
     insert_attempt = await db.reg_user(creds.email, creds.passw, creds.name)
 
     if insert_attempt == 'INSERT 0 0':
+        log_event(Events.unluck_registr_user, request, status=409, name=creds.name, email=hide_log_param(creds.email), level='WARNING')
         raise HTTPException(status_code=409, detail='Пользователь уже существует')
+    log_event(Events.registr_user, request, status=200, name=creds.name, email=hide_log_param(creds.email))
     return {'success': True, 'message': 'Пользователь добавлен'}
 
 
-@router.post('/login', tags=[Tags.users], summary="Вход в аккаунт")
+@router.post('/login', summary="Вход в аккаунт")
 async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, request: Request):
     db_user = await db.select_user(creds.email)
 
@@ -34,11 +37,11 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
         response.set_cookie('access_token', access_token, httponly=True)
         response.set_cookie('refresh_token', refresh_token, httponly=True)
         return {'success': True, 'message': 'Куки у Юзера'}
-
+    log_event(Events.unluck_login_user, request, status=401, email=hide_log_param(creds.email), level='WARNING')
     raise HTTPException(status_code=401, detail='Неверный логин или пароль')
 
 
-@router.post('/profile/seances')
+@router.post('/profile/seances', summary='Все Устройства аккаунта')
 async def show_seances(request: Request, db: PgSqlDep):
     seances = await db.all_seances_user(request.state.user_id, request.state.session_id)
     return {'seances': seances}
