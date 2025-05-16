@@ -15,7 +15,7 @@ services:
       - net_con
     volumes:
       - ./pg_data:/var/lib/postgresql/data
-      - ./dumps/example_table.sql:/docker-entrypoint-initdb/001_users.sql
+      - ./dumps/may_14_marketplace_dump.backup:/docker-entrypoint-initdb/marketplace_db_backup.backup
 
   marketplace:
     container_name: MarketplaceFastAPI_marketplace
