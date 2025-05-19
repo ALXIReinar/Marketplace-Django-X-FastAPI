@@ -2,14 +2,15 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, Response
 from starlette.responses import JSONResponse
 
-from core.config_dir.logger import logger, log_event
-from core.utils.anything import methods, Events
+from core.config_dir.logger import log_event
+from core.data.postgre import init_pool
+from core.utils.anything import Events
 from core.config_dir.urls_middlewares import apis_dont_need_auth, apis_conditionally_req_auth
-from core.db_data.postgre import PgSqlDep
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
@@ -40,14 +41,10 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         end = time.perf_counter() - start
         if end > 7.0:
-            log_event(Events.long_response, request, level='WARNING')
+            log_event(Events.long_response + f' {end: .4f}', request, level='WARNING')
         return response
 
 class AuthUxMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, db: PgSqlDep):
-        super().__init__(app)
-        self.db = db
-
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         now = datetime.utcnow()
         url = request.url.path
@@ -70,16 +67,20 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             # невалидный аксес_токен
             log_event(Events.fake_aT_try, request, level='CRITICAL')
             return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
-
         if datetime.utcfromtimestamp(access_token['exp']) < now:
             # аксес_токен ИСТЁК
-            refresh_token = request.cookies.get('refresh_token')
-            new_token = await reissue_aT(access_token, refresh_token, self.db, request)
-            if new_token == 401:
-                # рефреш_токен НЕ ВАЛИДЕН
-                log_event(Events.fake_rT, request, s_id=access_token.get('s_id', ''), user_id=access_token.get('sub', ''), level='CRITICAL')
-                return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
-            request.cookies['access_token'] = new_token
+
+
+            "процесс выпуска токена"
+            async with init_pool() as db:
+                refresh_token = request.cookies.get('refresh_token')
+                new_token = await reissue_aT(access_token, refresh_token, db, request)
+                if new_token == 401:
+                    # рефреш_токен НЕ ВАЛИДЕН
+                    log_event(Events.fake_rT, request, s_id=access_token.get('s_id', ''), user_id=access_token.get('sub', ''), level='CRITICAL')
+                    return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
+                request.cookies['access_token'] = new_token
+
 
         request.state.user_id = int(access_token['sub'])
         request.state.session_id = access_token['s_id']

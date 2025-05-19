@@ -1,9 +1,7 @@
-from collections import namedtuple
 from datetime import datetime
-from uuid import uuid4
 
 from core.config_dir.config import get_env_vars, encryption
-from core.db_data.postgre import PgSqlDep
+from core.data.postgre import PgSqlDep
 from core.schemas.user_schemas import TokenPayloadSchema
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import set_jwt_encode
 
@@ -34,7 +32,7 @@ async def issue_token(
         rT = add_ttl_limit(payload, True)
         encoded_rT = set_jwt_encode(rT)
         hashed_rT = encryption.hash(encoded_rT)
-        await db.make_session(session_id, int(payload['sub']), rT['iat'], rT['exp'], client.user_agent, client.ip, hashed_rT)
+        await db.auth.make_session(session_id, int(payload['sub']), rT['iat'], rT['exp'], client.user_agent, client.ip, hashed_rT)
         return hashed_rT
 
     payload['s_id'] = session_id if not payload.get('s_id') else payload['s_id']

@@ -6,7 +6,6 @@ from core.api.middlewares import LoggingTimeMiddleware, TrafficCounterMiddleware
 from core.api import main_router
 
 from core.config_dir.config import get_env_vars, app
-from core.db_data.postgre import PgSqlDep
 
 app.include_router(main_router)
 
@@ -18,7 +17,7 @@ app.add_middleware(
     allow_headers=['*']
 )
 # app.add_middleware(TrafficCounterMiddleware)
-app.add_middleware(AuthUxMiddleware, db=PgSqlDep)
+app.add_middleware(AuthUxMiddleware)
 app.add_middleware(LoggingTimeMiddleware)
 
 
