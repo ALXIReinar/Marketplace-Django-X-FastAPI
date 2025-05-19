@@ -1,35 +1,26 @@
 import inspect
-import os.path
+import os
 import sys
 from pathlib import Path
+
 from loguru import logger
 
 from core.config_dir.config import WORKDIR
-from core.utils.anything import Events, create_log_dirs
-
-from fastapi import Request
+from core.utils.anything import create_debug_log_dir
 
 
-create_log_dirs()
-LOG_DIR = Path(WORKDIR) / 'logs'
 
+create_debug_log_dir()
+LOG_DIR = Path(WORKDIR) / 'logs' / 'debug'
 logger.remove()
 
 
-def warning_info_logging(log):
-    return log['level'].name == 'INFO' or log['level'].name == 'WARNING'
-
-def safe_format(log):
+def debug_safe_format(log):
     extra = log['extra']
 
     method = extra.get('method', '')
     url = extra.get('url', '')
     status = extra.get('status', '')
-    ip = extra.get('ip', '')
-    user_id = extra.get('user_id', '')
-    s_id = extra.get('s_id', '')
-    email = extra.get('email', '')
-    name = extra.get('name', '')
 
     location = extra.get('caller_file', log['name'])
     func = extra.get('caller_func', log['function'])
@@ -40,41 +31,29 @@ def safe_format(log):
         f"<blue>{method}</blue> <cyan>{url}</cyan> <magenta>{status}</magenta> | "
         f"<level>{log['level']: <8}</level> | "
         f"<cyan>{location}</cyan>: def <cyan>{func}</cyan>(): line - <cyan>{line}</cyan> - "
-        f"<level>{log['message']}; {ip} {user_id} {s_id} {email} {name}</level>\n"
+        f"<level>{log['message']}\n"
     )
 
 logger.add(
     sys.stdout,
-    colorize=True,
     level='DEBUG',
-    format=safe_format
+    colorize=True,
+    format=debug_safe_format
 )
 
+
 logger.add(
-    LOG_DIR / 'info_warning' /'{time:DD-MM-YYYY}.log',
-    rotation='1 week',
-    retention='4 weeks',
-    compression='zip',
-    filter=warning_info_logging,
-    level='INFO',
+    LOG_DIR / '{time:DD-MM-YYYY}.log',
+    level='DEBUG',
     encoding='UTF-8',
-    enqueue=True,
-    format=safe_format
-)
-
-logger.add(
-    LOG_DIR / 'errors' / '{time:DD-MM-YYYY}.log',
-    rotation='1 month',
+    rotation='1 day',
     retention='6 months',
     compression='zip',
-    level='ERROR',
-    encoding='UTF-8',
     enqueue=True,
-    format=safe_format
+    format=debug_safe_format
 )
 
-
-def log_event(event: Events, request: Request, level: str='INFO', **extra):
+def log_debug(message, level='DEBUG', **extra):
     cur_call = inspect.currentframe()
     outer = inspect.getouterframes(cur_call)[1]
     filename = os.path.relpath(outer.filename)
@@ -85,9 +64,5 @@ def log_event(event: Events, request: Request, level: str='INFO', **extra):
         caller_file=filename,
         caller_func=func,
         caller_line=line,
-
-        method=request.method,
-        url=request.url,
-        ip=request.client.host,
         **extra
-    ).log(level, event)
+    ).log(level, f'{message}')

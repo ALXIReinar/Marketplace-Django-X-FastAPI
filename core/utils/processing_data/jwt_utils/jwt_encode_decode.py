@@ -8,14 +8,11 @@ from core.config_dir.config import get_env_vars
 
 
 def set_jwt_encode(payload: dict[str, Any]):
-    try:
-        encoded = jwt.encode(
-            payload=payload,
-            key=get_env_vars().JWTs.private_key.read_text(),
-            algorithm=get_env_vars().JWTs.algorithm
-        )
-    except ExpiredSignatureError:
-        encoded = 401
+    encoded = jwt.encode(
+        payload=payload,
+        key=get_env_vars().JWTs.private_key.read_text(),
+        algorithm=get_env_vars().JWTs.algorithm
+    )
     return encoded
 
 def get_jwt_decode_payload(encoded_jwt: str):
@@ -23,10 +20,9 @@ def get_jwt_decode_payload(encoded_jwt: str):
         decoded = jwt.decode(
             jwt=encoded_jwt,
             key=get_env_vars().JWTs.public_key.read_text(),
-            algorithms=[get_env_vars().JWTs.algorithm]
+            algorithms=[get_env_vars().JWTs.algorithm],
+            options={'verify_exp': False}
         )
     except DecodeError:
-        decoded = 401
-    except ExpiredSignatureError:
         decoded = 401
     return decoded
