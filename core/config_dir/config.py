@@ -20,14 +20,12 @@ class AuthConfig(BaseModel):
     private_key: Path = WORKDIR / 'keys' / 'private_jwt.pem'
     public_key: Path = WORKDIR / 'keys' / 'public_jwt.pem'
     algorithm: str = 'RS256'
-    # ttl_aT: timedelta = timedelta(minutes=15)
-    ttl_aT: timedelta = timedelta(seconds=15)
+    ttl_aT: timedelta = timedelta(minutes=15)
     ttl_rT: timedelta = timedelta(days=30)
 
 
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
-    frontend_space: str
 
     pg_user: str
     pg_password: str
@@ -44,8 +42,6 @@ class Settings(BaseSettings):
 @lru_cache
 def get_env_vars():
     return Settings()
-
-
 
 
 pool_settings = dict(
