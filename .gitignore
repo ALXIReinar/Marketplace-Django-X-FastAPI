@@ -166,8 +166,11 @@ cython_debug/
 *.env
 *.backup
 *.sql
+*.zip
 .images/
 .keys/
 .vscode/
 .vs/
 .dumps/
+.pg_data/
+.logs/

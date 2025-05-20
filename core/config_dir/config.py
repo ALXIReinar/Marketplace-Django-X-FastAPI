@@ -26,7 +26,6 @@ class AuthConfig(BaseModel):
 
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
-    frontend_space: str
 
     pg_user: str
     pg_password: str
@@ -36,6 +35,7 @@ class Settings(BaseSettings):
 
     JWTs: AuthConfig = AuthConfig()
     uvicorn_host: str
+    redis_host: str
 
     model_config = SettingsConfigDict(env_file='.env')
 
@@ -44,15 +44,18 @@ def get_env_vars():
     return Settings()
 
 
+pool_settings = dict(
+    user=get_env_vars().pg_user,
+    password=get_env_vars().pg_password,
+    host=get_env_vars().pg_host,
+    port=get_env_vars().pg_port,
+    database=get_env_vars().pg_db,
+    command_timeout=60
+)
+
+
 async def set_session():
-    connection = await create_pool(
-        user=get_env_vars().pg_user,
-        password=get_env_vars().pg_password,
-        host=get_env_vars().pg_host,
-        port=get_env_vars().pg_port,
-        database=get_env_vars().pg_db,
-        command_timeout=60
-    )
+    connection = await create_pool(**pool_settings)
     async with connection.acquire() as session:
         yield session
 

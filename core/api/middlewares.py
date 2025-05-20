@@ -2,13 +2,15 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, Response
 from starlette.responses import JSONResponse
 
-from core.config_dir.logger import methods
+from core.config_dir.logger import log_event
+from core.data.postgre import init_pool
+from core.utils.anything import Events
 from core.config_dir.urls_middlewares import apis_dont_need_auth, apis_conditionally_req_auth
-from core.db_data.postgre import PgSqlDep
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
@@ -27,6 +29,9 @@ class TrafficCounterMiddleware(BaseHTTPMiddleware):
 
         request_counter += 1
         """
+        # log_event(Events.lim_requests_ip, request,
+        #           user_id=request.state.user_id if hasattr(request.state, 'user_id') else '',
+        #           s_id=request.state.session_id if hasattr(request.state, 'session_id') else '')
         return await call_next(request)
 
 
@@ -35,36 +40,47 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         response = await call_next(request)
         end = time.perf_counter() - start
-        if end > 3.0:
-            print(f"LONG RESPONSE {methods[request.method]}| {request.url.path} | {end:.4f}")
-        # logger.info(f"end")
+        if end > 7.0:
+            log_event(Events.long_response + f' {end: .4f}', request, level='WARNING')
         return response
 
 class AuthUxMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, db: PgSqlDep):
-        super().__init__(app)
-        self.db = db
-
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         now = datetime.utcnow()
-        if (request.url.path in apis_dont_need_auth or
-           (request.url.path in apis_conditionally_req_auth and not request.cookies) or
-            request.url.path.startswith('/images')
+        url = request.url.path
+        if (url in apis_dont_need_auth or
+            url.endswith('.html') or
+            url.endswith('.css') or
+            url.endswith('.png') or
+            url.endswith('.jpg') or
+            url.endswith('.ico') or
+            url.endswith('.json') or
+           (url in apis_conditionally_req_auth and not request.cookies)
         ):
+            log_event(Events.white_list_url, request,
+                user_id=request.state.user_id if hasattr(request.state, 'user_id') else '',
+                s_id=request.state.session_id if hasattr(request.state, 'session_id') else '')
             return await call_next(request)
 
         encoded_access_token = request.cookies.get('access_token')
         if (access_token:= get_jwt_decode_payload(encoded_access_token)) == 401:
+            # невалидный аксес_токен
+            log_event(Events.fake_aT_try, request, level='CRITICAL')
             return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
-
         if datetime.utcfromtimestamp(access_token['exp']) < now:
             # аксес_токен ИСТЁК
-            refresh_token = request.cookies.get('refresh_token')
-            new_token = await reissue_aT(access_token, refresh_token, self.db)
-            if new_token == 401:
-                # рефреш_токен НЕ ВАЛИДЕН
-                return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
-            request.cookies['access_token'] = new_token
+
+
+            "процесс выпуска токена"
+            async with init_pool() as db:
+                refresh_token = request.cookies.get('refresh_token')
+                new_token = await reissue_aT(access_token, refresh_token, db, request)
+                if new_token == 401:
+                    # рефреш_токен НЕ ВАЛИДЕН
+                    log_event(Events.fake_rT, request, s_id=access_token.get('s_id', ''), user_id=access_token.get('sub', ''), level='CRITICAL')
+                    return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
+                request.cookies['access_token'] = new_token
+
 
         request.state.user_id = int(access_token['sub'])
         request.state.session_id = access_token['s_id']
