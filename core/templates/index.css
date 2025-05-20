@@ -95,7 +95,7 @@ header{
   background-color:#fff;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   position: sticky;
-    padding-top: 30px;
+    padding-top: 10px;
     width: 100%;
     top: 0;
     left: 0;
@@ -181,12 +181,8 @@ header{
             opacity: 1;
             transform: translateY(0);
         }
-        pop_up_nav::before {
-            content: "▼";
-            font-size: 10px;
-            margin-left: 5px;
-            transition: transform 0.3s ease;
-        }
+      
+        
          .pop_up.active .pop_up_nav::before {
             transform: rotate(180deg);
         }
@@ -228,24 +224,27 @@ header{
   background: #555;
 }
 /*Container_products*/
+
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 200px);
+  grid-template-columns: repeat(5, 270px);
   width: 100%;
-  max-width: 1200px; 
-  justify-content: center;
-  justify-items: center; 
-  column-gap: 130px; 
+  column-gap: 25px; 
   row-gap: 40px;
-  margin-top: 50px;
+  margin-top: 20px;
   margin: 0 auto;
+  justify-self: center;
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
  .card {
   width: 280px;
   min-height: 350px;
-  margin-top: 190px;
+  margin-top: 20px;
   box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
+  margin-left: 20px;
   flex-direction: column;
   border-radius: 8px;
   transition: 0.2s;
@@ -277,7 +276,7 @@ header{
 .card__label {
   padding: 4px 8px;
   position: absolute;
-  bottom: 100px;
+  bottom: 30px;
   color: #fff;
   background-color: #a88989;
   border-radius: 4px;
@@ -350,4 +349,67 @@ header{
 
 .favorites:hover {
   background-color: #7c0f0f;
+}
+/*Regisration*/
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.auth-modal {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  width: 350px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+.close-auth {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.auth-form input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.auth-form button {
+  background: #0066ff;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.auth-links a {
+  color: #0066ff;
+  text-decoration: none;
+  font-size: 13px;
 }

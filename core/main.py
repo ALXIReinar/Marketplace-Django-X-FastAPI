@@ -23,8 +23,8 @@ app.add_middleware(LoggingTimeMiddleware)
 
 
 app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates', html=True), name='frontend')
-app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/images'), name='pic_s')
+app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates/images'), name='pic_s_frontend')
 
 
 if __name__ == '__main__':
-    uvicorn.run('core.main:app', host=get_env_vars().uvicorn_host, port=8000)
+    uvicorn.run('core.main:app', host=get_env_vars().uvicorn_host, port=8000, log_config=None)

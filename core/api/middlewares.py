@@ -6,7 +6,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, Response
 from starlette.responses import JSONResponse
 
-from core.config_dir.logger import methods, apis_dont_need_auth
+from core.config_dir.logger import methods
+from core.config_dir.urls_middlewares import apis_dont_need_auth, apis_conditionally_req_auth
 from core.db_data.postgre import PgSqlDep
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
@@ -34,7 +35,8 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         response = await call_next(request)
         end = time.perf_counter() - start
-        print(f"{methods[request.method]}| {request.url.path} | {end:.4f}")
+        if end > 3.0:
+            print(f"LONG RESPONSE {methods[request.method]}| {request.url.path} | {end:.4f}")
         # logger.info(f"end")
         return response
 
@@ -45,7 +47,10 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         now = datetime.utcnow()
-        if request.url.path in apis_dont_need_auth:
+        if (request.url.path in apis_dont_need_auth or
+           (request.url.path in apis_conditionally_req_auth and not request.cookies) or
+            request.url.path.startswith('/images')
+        ):
             return await call_next(request)
 
         encoded_access_token = request.cookies.get('access_token')

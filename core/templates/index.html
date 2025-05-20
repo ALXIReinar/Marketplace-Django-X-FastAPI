@@ -72,149 +72,97 @@
         <div class="search_container">
         <input class="search_txt" type="text" name="" placeholder="Search product">
         <button class="search_btn">
-         <img src="images/icons8-поиск-24.png" alt="">
+         <img src="images/icon+file/icons8-поиск-24.png" alt="">
         </button>
         </div>
-          <nav class="nav_link">
-            <a class="nav__link" href="#">Заказы</a>
-            <a class="nav__link" href="#">Корзина</a>  
-            <a class="nav__link" href="#">Избранное</a>
-            <a class="nav__link" href="#">Чат</a>
-            <a class="nav__link" href="#">Профиль</a>
-            
-          </nav>    
+  <nav class="nav_link">
+  <a class="nav__link" href="#">Заказы</a>
+  <a class="nav__link" href="#">Корзина</a>
+  <a class="nav__link auth-trigger" href="#" data-auth-type="favorites">Избранное</a>
+  <a class="nav__link" href="#">Чат</a>
+  <a class="nav__link auth-trigger" href="#" data-auth-type="profile">Профиль</a>
+</nav>
         </div>
       </div>
     </div>
   </header>
   <body>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  let currentPage = 1;
-  let isLoading = false;
-  let hasMore = true;
-  const container = document.getElementById('products-container');
-  const loadingIndicator = document.getElementById('loading-indicator');
-
-  
-  async function loadProducts() {
-    if (isLoading || !hasMore) return;
-    
-    isLoading = true;
-    loadingIndicator.style.display = 'block';
-    
-    try {
-      const response = await fetch(`/api/products?page=${currentPage}`);
+    <div class="cards">
+      <div class="card">
+        <div class="card__top">
+          <a href="#" class="card__image">
+          <img src="images/products_img/photo_2025-05-13_10-48-50.jpg" alt="Apple iphone 15 Pro 128Гб, титан " class="card__image">
+          </a>
+          <div class="card__label">-10%</div>
+          <button class="favorites">
+            <img src="images/icon+file/free-icon-like-3641323.png" alt=" Избранное" class="favorites_icon">
+          </button>
+        </div>
+        <div class="card_bottom">
+          <div class="card__prices">
+            <diV class="card__price card__price--discount">135000</div>
+              <div class="card__price card__price--common">150000</div>
+          </div>
+          <a href="#" class="card_title">
+            Смартфон Apple iphone 15 Pro 128Гб, титан
+          </a>
+        </div>
+        </div>     
+    </div>
+    <script>
+  async function fetchData() {
+    try {const response = await fetch('http://127.0.0.1:8000/api/products/', {
+        method: 'POST',
+        body: JSON.stringify({
+          limit: 60,
+          offset: 0
+        })
+      }); 
       const data = await response.json();
-      
-      if (data.products && data.products.length > 0) {
-        renderProducts(data.products);
-        currentPage++;
-        hasMore = data.hasMore;
-      } else {
-        hasMore = false;
-      }
+      displayData(data);
     } catch (error) {
-      console.error('Ошибка загрузки:', error);
-    } finally {
-      isLoading = false;
-      loadingIndicator.style.display = 'none';
+      console.error('Error fetching data:', error);
+      const container = document.getElementById('products-container');
+      container.innerHTML = '<p>Ошибка загрузки данных.</p>';
+    }
+  }
+  function displayData(data) {
+    const container = document.getElementById('products-container');
+    container.innerHTML = '';
+    if (data.products && data.products.length > 0) {
+      data.products.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        card.innerHTML = `
+          <div class="card__top">
+            <a href="#" class="card__image">
+              <img src="images/photo_2025-05-13_10-48-50.jpg" alt="${product.prd_name}" class="card__image">
+            </a>
+            <div class="card__label"></div>
+            <button class="favorites">
+              <img src="images/free-icon-like-3641323.png" alt="Избранное" class="favorites_icon">
+            </button>
+          </div>
+          <div class="card_bottom">
+            <div class="card__prices">
+              <div class="card__price card__price--common">${product.cost} руб.</div>
+            </div>
+            <a href="#" class="card_title">${product.prd_name}</a>
+          </div>`
+          ;
+        
+        container.appendChild(card);
+      });
+    } else {
+      container.innerHTML = '<p>Нет товаров для отображения.</p>';
     }
   }
 
-  
-  function renderProducts(products) {
-    const template = document.getElementById('product-template');
-    
-    products.forEach(product => {
-      const clone = template.content.cloneNode(true);
-      const card = clone.querySelector('.card');
-      
-     
-      card.dataset.id = product.id;
-      
-    
-      const img = clone.querySelector('.card__image-img');
-      img.src = product.image_url || 'images/default-product.jpg';
-      img.alt = product.name || 'Изображение товара';
-      img.onerror = function() {
-        this.src = 'images/default-product.jpg';
-      };
-      
-
-      const links = clone.querySelectorAll('a');
-      links.forEach(link => {
-        link.href = `/product/${product.id}`;
-      });
-      
-   
-      const label = clone.querySelector('.card__label');
-      if (product.discount_percent > 0) {
-        label.textContent = `-${product.discount_percent}%`;
-        label.style.display = 'block';
-      } else {
-        label.style.display = 'none';
-      }
-      
-    
-      const discountEl = clone.querySelector('.card__price--discount');
-      const commonEl = clone.querySelector('.card__price--common');
-      
-      if (product.discount_percent > 0) {
-        const discountPrice = product.price * (1 - product.discount_percent/100);
-        discountEl.textContent = `${Math.round(discountPrice).toLocaleString('ru-RU')} ₽`;
-        commonEl.textContent = `${product.price.toLocaleString('ru-RU')} ₽`;
-        commonEl.style.display = 'block';
-      } else {
-        discountEl.textContent = `${product.price.toLocaleString('ru-RU')} ₽`;
-        commonEl.style.display = 'none';
-      }
-      
-     
-      const titleEl = clone.querySelector('.card_title');
-      titleEl.textContent = product.name;
-      titleEl.href = `/product/${product.id}`;
-      
-      
-      const favBtn = clone.querySelector('.favorites');
-      favBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        toggleFavorite(product.id);
-      });
-      
-      container.appendChild(clone);
-    });
-  }
-
-  window.addEventListener('scroll', () => {
-    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-    
-    if (scrollTop + clientHeight >= scrollHeight - 500) {
-      loadProducts();
-    }
-  });
-
- 
-  function toggleFavorite(productId) {
-    fetch('/api/favorites', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ productId })
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log('Избранное обновлено:', data);
-    })
-    .catch(error => {
-      console.error('Ошибка:', error);
-    });
-  }
-
-  
-  loadProducts();
-});
+  document.addEventListener('DOMContentLoaded', fetchData);
 </script>
+
+
+
   </body>
 </html>
