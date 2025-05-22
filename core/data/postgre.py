@@ -5,8 +5,8 @@ from asyncpg import Connection, create_pool
 from fastapi.params import Depends
 
 from core.config_dir.config import set_session, pool_settings
-from core.data.products_sql import ProductsQueries
-from core.data.users_sql import UsersQueries, AuthQueries
+from core.data.sql_queries.products_sql import ProductsQueries
+from core.data.sql_queries.users_sql import UsersQueries, AuthQueries
 
 
 class PgSql:
