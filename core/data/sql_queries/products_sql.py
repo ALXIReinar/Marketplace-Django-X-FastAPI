@@ -15,7 +15,7 @@ class ProductsQueries:
         LEFT JOIN comments c ON c.prd_id = p.id
         WHERE p.category_id IN (
             SELECT category_id FROM preferences_users 
-            WHERE user_id = 1 ORDER BY counter DESC LIMIT 3)
+            WHERE user_id = $1 ORDER BY counter DESC LIMIT 3)
         AND p.remain > 0
         GROUP BY p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path
         OFFSET $2 LIMIT $3"""
@@ -37,6 +37,7 @@ class ProductsQueries:
         named_res = namedtuple('Records', ('products', 'favorite', 'ordered_items'))
         return named_res(layout_products, f_count, ord_count)
 
+
     async def get_search_docs_BULK(self):
         query = """
         SELECT p."id", p.prd_name, d_p.category_full FROM products p
@@ -44,4 +45,17 @@ class ProductsQueries:
         GROUP BY p."id", p.prd_name, d_p.category_full
         """
         records = await self.conn.fetch(query)
+        return records
+
+    async def products_by_id(self, ids_prdts: tuple):
+        query = """
+        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days, COUNT(c.id_comment), AVG(c.rate) FROM products p
+        LEFT JOIN comments c ON c.prd_id = p.id
+        JOIN images_prdts img ON img.prd_id = p.id AND img.position = 1
+        JOIN details_prdts d_p ON d_p.prd_id = p.id 
+        WHERE p.id = ANY($1)
+        AND p.remain > 0
+        GROUP BY p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days
+        """
+        records = await self.conn.fetch(query, ids_prdts)
         return records

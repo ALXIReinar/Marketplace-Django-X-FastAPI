@@ -15,7 +15,7 @@ methods = {
 class Tags:
     users = 'Пользователи'
     products = 'Товары'
-    elastic_products = 'Товары *Elastic*'
+    elastic_products = 'Товары *Elastic🔎*'
 
 @dataclass
 class Events:
