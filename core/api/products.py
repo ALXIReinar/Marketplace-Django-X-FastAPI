@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Request
 
+from core.data.postgre import PgSqlDep
 from core.config_dir.base_dependencies import PagenDep
 from core.utils.anything import Tags
-from core.data.postgre import PgSqlDep
 
 router = APIRouter(prefix='/api/products', tags=[Tags.products])
 
