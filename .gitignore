@@ -163,10 +163,12 @@ cython_debug/
 
 .idea/
 *.pem
+*.crt
 *.env
 *.backup
 *.sql
 *.zip
+*.xlsx
 .images/
 .keys/
 .vscode/
@@ -174,3 +176,4 @@ cython_debug/
 .dumps/
 .pg_data/
 .logs/
+.rabbitmq_data/
