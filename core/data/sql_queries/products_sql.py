@@ -9,7 +9,7 @@ class ProductsQueries:
 
     async def welcome_page_select(self, user_id, offset, limit):
         query_layout_products = """
-        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, COUNT(c.id_comment), AVG(c.rate)
+        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, COUNT(c.id_comment) AS count_coms, AVG(c.rate) AS avg_rate
         FROM products p
         JOIN images_prdts img ON p.id = img.prd_id AND img.position = 1
         LEFT JOIN comments c ON c.prd_id = p.id

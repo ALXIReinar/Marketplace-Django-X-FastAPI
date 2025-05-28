@@ -1,37 +1,88 @@
 services:
-  pg_db:
-    container_name: MarketplaceFastAPI_db
-    image: postgres:16
-    env_file:
-      - ./.env
-    environment:
-      - POSTGRES_USER=${PG_USER}
-      - POSTGRES_PASSWORD=${PG_PASSWORD}
-      - POSTGRES_DB=${PG_DB}
-    restart: on-failure
+  redis:
+    image: redis:3
+    container_name: redis_pied_market
+    command: redis-server
     ports:
-      - '5432:5432'
-    networks:
-      - net_con
-    volumes:
-      - ./pg_data:/var/lib/postgresql/data
-      - ./dumps/may_14_marketplace_dump.backup:/docker-entrypoint-initdb/marketplace_db_backup.backup
-
-  marketplace:
-    container_name: MarketplaceFastAPI_marketplace
-    build: .
-    command: python core/main.py
-    env_file:
-      - ./.env
-    depends_on:
-      - pg_db
-    restart: on-failure
-
+      - '6378:6379'
     networks:
       net_con:
+
+  rabbitmq:
+    container_name: rabbitmq_pied_market
+    image: rabbitmq:3.12-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSW}
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - ./rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      net_con:
+
+  celery_worker:
+    container_name: celery_worker_pied_market
+    build: .
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue
+    environment:
+      - DOCKERIZED=1
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    develop:
+      watch:
+        - target: /app
+          path: ./core
+          action: sync+restart
+    depends_on:
+      - rabbitmq
+      - redis
+    volumes:
+      - ./core/templates/images:/app/core/templates/images
+    networks:
+      net_con:
+
+#  pg_db:
+#    container_name: pg_db_pied_market
+#    image: postgres:16
+#    env_file:
+#      - ./.env
+#    environment:
+#      - POSTGRES_USER=${PG_USER}
+#      - POSTGRES_PASSWORD=${PG_PASSWORD}
+#      - POSTGRES_DB=${PG_DB}
+#    restart: on-failure
+#    ports:
+#      - '5432:5432'
+#    networks:
+#      - net_con
+#    volumes:
+#      - ./pg_data:/var/lib/postgresql/data
+#      - ./dumps/marketplace_backup_28-05-2025_17-12.backup:/docker-entrypoint-initdb/marketplace_db_backup.backup
+
+
+
+#  marketplace:
+#    container_name: MarketplaceFastAPI_marketplace
+#    build: .
+#    command: python core/main.py
+#    env_file:
+#      - ./.env
+#    depends_on:
+#      - pg_db
+#    restart: on-failure
+#
+#    networks:
+#      net_con:
 
 
 
 networks:
   net_con:
     driver: bridge
+
+volumes:
+  pg_data:
+  rabbitmq_data:
+  images:
