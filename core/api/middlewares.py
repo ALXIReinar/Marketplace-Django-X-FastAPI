@@ -55,7 +55,9 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             url.endswith('.jpg') or
             url.endswith('.ico') or
             url.endswith('.json') or
-           (url in apis_conditionally_req_auth and not request.cookies)
+            url.startswith('/api/bg_tasks/') or
+          ((url.startswith('/api/products/') or
+            url in apis_conditionally_req_auth) and not request.cookies)
         ):
             log_event(Events.white_list_url, request,
                 user_id=request.state.user_id if hasattr(request.state, 'user_id') else '',

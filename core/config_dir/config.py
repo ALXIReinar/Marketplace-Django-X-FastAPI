@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from functools import lru_cache
@@ -34,15 +35,19 @@ class Settings(BaseSettings):
     pg_password: str
     pg_db: str
     pg_host: str
+    pg_host_docker: str
     pg_port: int
+    pg_port_docker: int
 
     redis_host: str
+    redis_port: str
 
     elastic_user: str
     elastic_password: str
     elastic_host: str
     elastic_port: str
     elastic_certs: str
+    elastic_certs_docker: str
     search_index: str
 
     s3_access_key: str
@@ -50,35 +55,42 @@ class Settings(BaseSettings):
     s3_endpoint_url: str
     s3_bucket_name: str
 
+    rabbitmq_user: str
+
+    celery_broker_url: str
+    celery_result_backend: str
+
     JWTs: AuthConfig = AuthConfig()
     uvicorn_host: str
+    dockerized: str | bool = os.getenv('DOCKERIZED', False)
 
-    model_config = SettingsConfigDict(env_file='.env')
+    model_config = SettingsConfigDict(env_file='.env', extra='allow')
 
 @lru_cache
 def get_env_vars():
     return Settings()
+env = get_env_vars()
 
-
+"ElasticSearch"
 es_client = AsyncElasticsearch(
     hosts=[
-        f'https://{get_env_vars().elastic_host}:{get_env_vars().elastic_port}'
+        f'https://{env.elastic_host}:{env.elastic_port}'
     ],
-    basic_auth=(get_env_vars().elastic_user,get_env_vars().elastic_password),
-    ca_certs=get_env_vars().elastic_certs,
+    basic_auth=(env.elastic_user,env.elastic_password),
+    ca_certs=env.elastic_certs_docker if env.dockerized else env.elastic_certs,
     verify_certs=False
 )
 
 
+"PostgreSql"
 pool_settings = dict(
-    user=get_env_vars().pg_user,
-    password=get_env_vars().pg_password,
-    host=get_env_vars().pg_host,
-    port=get_env_vars().pg_port,
-    database=get_env_vars().pg_db,
+    user=env.pg_user,
+    password=env.pg_password,
+    host=env.pg_host_docker if env.dockerized else env.pg_host,
+    port=env.pg_port_docker if env.dockerized else env.pg_port,
+    database=env.pg_db,
     command_timeout=60
 )
-
 
 async def set_session():
     connection = await create_pool(**pool_settings)
@@ -86,12 +98,13 @@ async def set_session():
         yield session
 
 
+"S3 Storage"
 @asynccontextmanager
 async def cloud_session():
         config =  {
-            'aws_access_key_id': get_env_vars().access_key,
-            'aws_secret_access_key': get_env_vars().secret_key,
-            'endpoint_url': get_env_vars().endpoint_url,
+            'aws_access_key_id': env.access_key,
+            'aws_secret_access_key': env.secret_key,
+            'endpoint_url': env.endpoint_url,
         }
         async with get_session().create_client('s3', **config) as session:
             yield session

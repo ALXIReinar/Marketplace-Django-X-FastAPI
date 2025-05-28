@@ -1,16 +1,19 @@
-from pydantic import BaseModel, Field
-from typing_extensions import Optional
+from decimal import Decimal
+
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ProductBase(BaseModel):
-    id: Optional[int]
+    id: int
 
 class ProductPreviewSchema(ProductBase):
     seller_id: int
     prd_name: str
-    category: str
+    cost: Decimal
+    remain: int
     path: str
-    rate: int
+    count_coms: int
+    avg_rate: float | None
 
 
 class SearchSchema(BaseModel):

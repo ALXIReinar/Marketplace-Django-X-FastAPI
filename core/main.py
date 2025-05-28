@@ -13,7 +13,7 @@ app.include_router(main_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5500", "http://127.0.0.1:5500", "http://127.0.0.1:8000"],
-    allow_methods=['GET', 'POST'],
+    allow_methods=['GET', 'POST', 'PUT', 'DELETE'],
     allow_headers=['*']
 )
 # app.add_middleware(TrafficCounterMiddleware)
