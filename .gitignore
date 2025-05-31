@@ -169,11 +169,11 @@ cython_debug/
 *.sql
 *.zip
 *.xlsx
-.images/
-.keys/
+images/
+keys/
 .vscode/
 .vs/
-.dumps/
-.pg_data/
-.logs/
-.rabbitmq_data/
+dumps/
+pg_data/
+logs/
+rabbitmq_data/
