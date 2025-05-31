@@ -46,6 +46,8 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
 
 class AuthUxMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        request.state.user_id = 1
+        request.state.session_id = '1'
         now = datetime.utcnow()
         url = request.url.path
         if (url in apis_dont_need_auth or
@@ -60,8 +62,8 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             url in apis_conditionally_req_auth) and not request.cookies)
         ):
             log_event(Events.white_list_url, request,
-                user_id=request.state.user_id if hasattr(request.state, 'user_id') else '',
-                s_id=request.state.session_id if hasattr(request.state, 'session_id') else '')
+                user_id=request.state.user_id,
+                s_id=request.state.session_id)
             return await call_next(request)
 
         encoded_access_token = request.cookies.get('access_token')

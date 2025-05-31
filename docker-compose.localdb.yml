@@ -46,37 +46,8 @@ services:
       - ./core/templates/images:/app/core/templates/images
     networks:
       net_con:
-
-  pg_db:
-    container_name: pg_db_pied_market
-    image: postgres:16
-    env_file:
-      - ./.env
-    environment:
-      - POSTGRES_USER=${PG_USER}
-      - POSTGRES_PASSWORD=${PG_PASSWORD}
-      - POSTGRES_DB=${PG_DB}
-    restart: on-failure
-    ports:
-      - '5431:5432'
-    networks:
-      - net_con
-    volumes:
-      - ./pg_data:/var/lib/postgresql/data
-      - ./dumps/marketplace_backup_31-05-2025_20-38.sql:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
-
-#  marketplace:
-#    container_name: MarketplaceFastAPI_marketplace
-#    build: .
-#    command: python core/main.py
-#    env_file:
-#      - ./.env
-#    depends_on:
-#      - pg_db
-#    restart: on-failure
-#
-#    networks:
-#      net_con:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 
 networks:
@@ -84,6 +55,5 @@ networks:
     driver: bridge
 
 volumes:
-  pg_data:
   rabbitmq_data:
   images:

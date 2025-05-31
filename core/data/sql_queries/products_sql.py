@@ -9,9 +9,9 @@ class ProductsQueries:
 
     async def welcome_page_select(self, user_id, offset, limit):
         query_layout_products = """
-        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, COUNT(c.id_comment) AS count_coms, AVG(c.rate) AS avg_rate
+        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, COUNT(c.id) AS count_coms, AVG(c.rate) AS avg_rate
         FROM products p
-        JOIN images_prdts img ON p.id = img.prd_id AND img.position = 1
+        JOIN images_prdts img ON p.id = img.prd_id AND img.title_img = true
         LEFT JOIN comments c ON c.prd_id = p.id
         WHERE p.category_id IN (
             SELECT category_id FROM preferences_users 
@@ -49,9 +49,9 @@ class ProductsQueries:
 
     async def products_by_id(self, ids_prdts: tuple):
         query = """
-        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days, COUNT(c.id_comment), AVG(c.rate) FROM products p
+        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days, COUNT(c.id) AS count_coms, ROUND(AVG(c.rate), 1) AS avg_rate FROM products p
         LEFT JOIN comments c ON c.prd_id = p.id
-        JOIN images_prdts img ON img.prd_id = p.id AND img.position = 1
+        JOIN images_prdts img ON img.prd_id = p.id AND img.title_img = true
         JOIN details_prdts d_p ON d_p.prd_id = p.id 
         WHERE p.id = ANY($1)
         AND p.remain > 0
