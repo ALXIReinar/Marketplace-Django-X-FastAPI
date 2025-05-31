@@ -31,12 +31,19 @@ class AuthConfig(BaseModel):
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
 
-    pg_user: str
-    pg_password: str
     pg_db: str
+    pg_user: str
+
+    pg_password: str
     pg_host: str
-    pg_host_docker: str
     pg_port: int
+
+    pg_password_cl: str
+    pg_host_cl: str
+    pg_port_cl: int
+
+    pg_host_celery_worker_docker_db: str
+    pg_host_docker: str
     pg_port_docker: int
 
     redis_host: str
@@ -61,8 +68,13 @@ class Settings(BaseSettings):
     celery_result_backend: str
 
     JWTs: AuthConfig = AuthConfig()
+    internal_host: str
     uvicorn_host: str
+
     dockerized: str | bool = os.getenv('DOCKERIZED', False)
+    docker_db: bool = os.getenv('DOCKER_DB', False)
+    cloud_db: bool = bool(os.getenv('CLOUD_DB', False))
+    celery_worker: str | bool = os.getenv('CELERY_WORKER', False)
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
 
@@ -83,11 +95,29 @@ es_client = AsyncElasticsearch(
 
 
 "PostgreSql"
+host = env.pg_host
+port = env.pg_port
+passw = env.pg_password
+if env.cloud_db:
+    "БД-Облако"
+    host = env.pg_host_cl
+    port = env.pg_port_cl
+    passw = env.pg_password_cl
+elif env.docker_db and env.celery_worker:
+    "БД в Докере и запускается Воркер"
+    host = env.pg_host_celery_worker_docker_db
+elif not env.cloud_db and env.celery_worker:
+    "Локальная БД и Воркер"
+    host = env.internal_host
+elif env.docker_db:
+    "БД в докере, Локалка подрубается"
+    port = env.pg_port_docker
+
 pool_settings = dict(
     user=env.pg_user,
-    password=env.pg_password,
-    host=env.pg_host_docker if env.dockerized else env.pg_host,
-    port=env.pg_port_docker if env.dockerized else env.pg_port,
+    password=passw,
+    host=host,
+    port=port,
     database=env.pg_db,
     command_timeout=60
 )
