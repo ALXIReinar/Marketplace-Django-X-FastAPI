@@ -1,93 +1,151 @@
+import os
 import inspect
-import os.path
-import sys
+from datetime import datetime
 from pathlib import Path
-from loguru import logger
+
+import logging
+from logging.config import dictConfig
+
+from starlette.requests import Request
 
 from core.config_dir.config import WORKDIR
-from core.utils.anything import Events, create_log_dirs
-
-from fastapi import Request
-
+from core.utils.anything import create_log_dirs, Events, create_debug_log_dir
 
 create_log_dirs()
+create_debug_log_dir()
 LOG_DIR = Path(WORKDIR) / 'logs'
 
-logger.remove()
 
 
-def warning_info_logging(log):
-    return log['level'].name == 'INFO' or log['level'].name == 'WARNING'
+class InfoWarningFilter(logging.Filter):
+    def logger_filter(self, log):
+        return log.levelno in (logging.INFO, logging.WARNING, logging.ERROR)
 
-def safe_format(log):
-    extra = log['extra']
+class ErrorFilter(logging.Filter):
+    def logger_filter(self, log):
+        return log.levelno == logging.CRITICAL
 
-    method = extra.get('method', '')
-    url = extra.get('url', '')
-    status = extra.get('status', '')
-    ip = extra.get('ip', '')
-    user_id = extra.get('user_id', '')
-    s_id = extra.get('s_id', '')
-    email = extra.get('email', '')
-    name = extra.get('name', '')
+lvls = {
+    "DEBUG": 10,
+    "INFO": 20,
+    "WARNING": 30,
+    "ERROR": 40,
+    "CRITICAL": 50
+}
 
-    location = extra.get('caller_file', log['name'])
-    func = extra.get('caller_func', log['function'])
-    line = extra.get('caller_line', log['line'])
+logger_settings = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "()": "colorlog.ColoredFormatter",
+            "format": "%(log_color)s%(levelname)-8s%(reset)s | "
+                      "\033[32mD%(asctime)s\033[0m | "
+                      "\033[34m%(method)s\033[0m \033[36m%(url)s\033[0m | "
+                      "%(cyan)s%(location)s:%(reset)s def %(cyan)s%(func)s%(reset)s(): line - %(cyan)s%(line)d%(reset)s - \033[34m%(ip)s\033[0m "
+                      "%(message)s",
+            "datefmt": "%d-%m-%Y T%H:%M:%S",
+            "log_colors": {
+                "DEBUG": "white",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red"
+            }
+        },
+        "no_color": {
+            "()": "colorlog.ColoredFormatter",
+            "format": "%(levelname)-8s | "
+                      "D%(asctime)s | "
+                      "%(method)s %(url)s | "
+                      "%(location)s: def %(func)s(): line - %(line)d - %(ip)s "
+                      "%(message)s",
+            "datefmt": "%d-%m-%Y T%H:%M:%S",
+            "log_colors": {
+                "DEBUG": "white",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red"
+            }
+        }
+    },
+    "filters": {
+        "info_warning_error_filter": {
+            "()": InfoWarningFilter,
+        },
+        "error_filter": {
+            "()": ErrorFilter,
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+            "level": "DEBUG"
+        },
+        "debug_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "no_color",
+            "filename": LOG_DIR / "debug" / "app.log",
+            "when": "midnight",
+            "backupCount": 60,
+            "encoding": "utf8",
+            "filters": []
+        },
+        "info_warning_errors_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "INFO",
+            "formatter": "no_color",
+            "filename": LOG_DIR / "info_warning_error" / "app.log",
+            "when": "midnight",
+            "backupCount": 60,
+            "encoding": "utf8",
+            "filters": ["info_warning_error_filter"]
+        },
+        "critical_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "CRITICAL",
+            "formatter": "no_color",
+            "filename": LOG_DIR / "critical" / "app.log",
+            "when": "midnight",
+            "backupCount": 180,
+            "encoding": "utf8",
+            "filters": ["error_filter"]
+        }
+    },
+    "loggers": {
+        "prod_log": {
+            "handlers": ["console", "info_warning_errors_file", "critical_file"],
+            "level": "DEBUG",
+            "propagate": False
+        }
+    }
+}
 
-    return (
-        f"<green>D{log['time']:YYYY-MM-DD} T{log['time']:HH:mm:ss}</green> | "
-        f"<blue>{method}</blue> <cyan>{url}</cyan> <magenta>{status}</magenta> | "
-        f"<level>{log['level']: <8}</level> | "
-        f"<cyan>{location}</cyan>: def <cyan>{func}</cyan>(): line - <cyan>{line}</cyan> - "
-        f"<level>{log['message']}; {ip} {user_id} {s_id} {email} {name}</level>\n"
-    )
-
-logger.add(
-    sys.stdout,
-    colorize=True,
-    level='DEBUG',
-    format=safe_format
-)
-
-logger.add(
-    LOG_DIR / 'info_warning' /'{time:DD-MM-YYYY}.log',
-    rotation='1 week',
-    retention='4 weeks',
-    compression='zip',
-    filter=warning_info_logging,
-    level='INFO',
-    encoding='UTF-8',
-    enqueue=True,
-    format=safe_format
-)
-
-logger.add(
-    LOG_DIR / 'errors' / '{time:DD-MM-YYYY}.log',
-    rotation='1 month',
-    retention='6 months',
-    compression='zip',
-    level='ERROR',
-    encoding='UTF-8',
-    enqueue=True,
-    format=safe_format
-)
+logging.config.dictConfig(logger_settings)
+logger = logging.getLogger('prod_log')
 
 
-def log_event(event: Events, request: Request, level: str='INFO', **extra):
+def log_event(event: Events | str, *args, request: Request=None, level: str='INFO'):
     cur_call = inspect.currentframe()
     outer = inspect.getouterframes(cur_call)[1]
     filename = os.path.relpath(outer.filename)
     func = outer.function
     line = outer.lineno
 
-    logger.bind(
-        caller_file=filename,
-        caller_func=func,
-        caller_line=line,
+    meth, url, ip = '', '', ''
+    if request:
+        meth, url, ip = request.method, request.url, request.client.host
 
-        method=request.method,
-        url=request.url,
-        ip=request.client.host,
-        **extra
-    ).log(level, event)
+    message = event % args if args else event
+
+    logger.log(lvls[level.upper()], message, extra={
+        'method': meth,
+        'location': filename,
+        'func': func,
+        'line': line,
+        'url': url,
+        'ip': ip
+    })

@@ -6,16 +6,8 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic import EmailStr
 
 
-class UserDBSchema(BaseModel):
-    email: EmailStr
-
-class UserLogInSchema(UserDBSchema):
+class ValidatePasswSchema(BaseModel):
     passw: str
-
-class UserRegSchema(UserDBSchema):
-    name: Annotated[str | None, Field(default='Пользователь Pied Market')]
-    passw: str
-
     @field_validator('passw', check_fields=False)
     def validate_password(cls, value) -> bytes:
         passw = value.strip()
@@ -41,7 +33,18 @@ class UserRegSchema(UserDBSchema):
 
         if spec_spell and digit and uppercase:
             return passw.encode()
-        raise ValueError('Password does not match the conditions: 1 Spec char, 1 digit, 1 uppercase letter')
+        raise ValueError('Password does not match the conditions: 1 Spec char, 1 digit, 1 Uppercase letter')
+
+class UpdatePasswSchema(ValidatePasswSchema):
+    reset_token: str
+
+class UserLogInSchema(BaseModel):
+    email: EmailStr
+    passw: str
+
+class UserRegSchema(ValidatePasswSchema):
+    email: EmailStr
+    name: Annotated[str | None, Field(default='Пользователь Pied Market')]
 
 
 class TokenPayloadSchema(BaseModel):

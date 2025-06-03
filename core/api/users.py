@@ -1,9 +1,16 @@
-from fastapi import APIRouter, Response, Request, HTTPException
+import secrets
+from uuid import uuid4
 
-from core.config_dir.debug_logger import log_debug
+from fastapi import APIRouter, Response, Request, HTTPException
+from pydantic import EmailStr
+from starlette.responses import JSONResponse
+
+from core.bg_tasks.celery_processing import sending_email_code
 from core.data.postgre import PgSqlDep
+from core.data.redis_storage import redis
 from core.utils.processing_data.jwt_processing import issue_aT_rT
-from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema
+from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema, ValidatePasswSchema, \
+    UpdatePasswSchema
 from core.config_dir.config import encryption
 from core.config_dir.logger import log_event
 from core.utils.anything import Tags, Events, hide_log_param
@@ -15,12 +22,12 @@ router = APIRouter(prefix='/api/users', tags=[Tags.users])
 @router.post('/sign_up', summary="Регистрация")
 async def registration_user(creds: UserRegSchema, db: PgSqlDep, request: Request):
     insert_attempt = await db.users.reg_user(creds.email, creds.passw, creds.name)
-
     if insert_attempt == 'INSERT 0 0':
-        log_event(Events.unluck_registr_user, request, status=409, name=creds.name, email=hide_log_param(creds.email), level='WARNING')
+        log_event(Events.unluck_registr_user + f" name: {creds.name}; email: {hide_log_param(creds.email)}", request=request, level='WARNING')
         raise HTTPException(status_code=409, detail='Пользователь уже существует')
-    log_event(Events.registr_user, request, status=200, name=creds.name, email=hide_log_param(creds.email))
+    log_event(Events.registr_user + f" name: {creds.name}, email: {hide_log_param(creds.email)}", request=request)
     return {'success': True, 'message': 'Пользователь добавлен'}
+
 
 
 @router.post('/login', summary="Вход в аккаунт")
@@ -38,35 +45,63 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
         response.set_cookie('access_token', access_token, httponly=True)
         response.set_cookie('refresh_token', refresh_token, httponly=True)
         return {'success': True, 'message': 'Куки у Юзера'}
-    log_event(Events.unluck_login_user, request, status=401, email=hide_log_param(creds.email), level='WARNING')
+    log_event(Events.unluck_login_user + f" email: {hide_log_param(creds.email)}", request=request, level='WARNING')
     raise HTTPException(status_code=401, detail='Неверный логин или пароль')
+
 
 
 @router.post('/profile/seances', summary='Все Устройства аккаунта')
 async def show_seances(request: Request, db: PgSqlDep):
+    log_event("Запрос всех Устройств с акка | user_id: %s; s_id: %s", request.state.user_id, request.state.session_id, request=request, level='INFO')
     seances = await db.auth.all_seances_user(request.state.user_id, request.state.session_id)
     return {'seances': seances}
 
 
 
+"Сброс Пароля"
+@router.get('/passw/forget_passw')
+async def account_recovery(email: EmailStr, db: PgSqlDep, request: Request):
+    log_event('Попытка сброса пароля | email: %s', hide_log_param(email), request=request, level='WARNING')
 
-@router.get('/log_checker')
-async def generate_log(request: Request):
-    log_event(Events.TEST, request, email='epic', status=200, user_id=123)
-    log_event(Events.TEST, request, level='WARNING', status=304)
-    log_event(Events.TEST, request, level='ERROR', status=404)
-    log_event(Events.TEST, request, level='CRITICAL', status=500)
-    return {'success': True, 'message': 'time to logs!'}
+    user = await db.users.get_id_name_by_email(email)
+    reset_token = str(uuid4())
+    sending_email_code.apply_async(args=[email, user, reset_token])
 
-
-
-
-
-
-
+    return JSONResponse(status_code=200, content={
+        'reset_token': reset_token,
+        'message': 'Письмо с кодом подтверждения было отправлено!'
+    })
 
 
+@router.get('/passw/compare_confirm_code')
+async def compare_mail_user_code(reset_token: str, code: str, request: Request):
+    pre_user_id = await redis.get(reset_token)
+    if pre_user_id:
+        "На случай, если вернутся на страницу назад, а в кэш-попадание уже было"
+        user_id = pre_user_id.decode()
+        server_code = await redis.get(user_id)
+        if secrets.compare_digest(server_code, code.encode()):
+            await redis.delete(user_id)
+            return {'success': True, 'message': 'Коды совпали, можно менять пароль'}
+        log_event("Код пользователя и код на сервере не совпали! | user_id: %s", user_id, request=request, level='WARNING')
+        raise HTTPException(status_code=422, detail='Код неверный')
+    log_event("Кто-то решил поиграться, или вернуться на прошлую страницу | reset_token: %s", reset_token, request=request, level='CRITICAL')
+    raise HTTPException(status_code=404, detail='Сессия истекла, повторите процедуру')
 
 
+@router.post('/passw/set_new_passw')
+async def reset_password(
+        update_secrets: UpdatePasswSchema,
+        db: PgSqlDep,
+        request: Request
+):
+    user_id = await redis.get(update_secrets.reset_token)
+    if user_id:
+        await redis.delete(update_secrets.reset_token)
 
-
+        hashed_passw = encryption.hash(update_secrets.passw)
+        await db.users.set_new_passw(int(user_id.decode()), hashed_passw)
+        log_event("Юзер сменил Пароль | user_id: %s", user_id, request=request, level='WARNING')
+        return {'success': True, 'message': 'Пароль обновлён!'}
+    log_event("Кто-то решил поиграться, или вернуться на прошлую страницу | reset_token: %s", update_secrets.reset_token, request=request, level='CRITICAL')
+    raise HTTPException(404, detail='Сессия утрачена. Повторите процедуру')
