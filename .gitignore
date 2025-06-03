@@ -177,3 +177,4 @@ dumps/
 pg_data/
 logs/
 rabbitmq_data/
+prj_certs/
