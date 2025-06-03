@@ -17,8 +17,13 @@ register(
 broker = env.celery_broker_url if env.dockerized else f"pyamqp://{env.rabbitmq_user}@localhost//"
 backend_result = env.celery_result_backend if env.dockerized else f"redis://localhost:{env.redis_port}/0"
 
-ext_prd_queue = 'extended_product_card_queue'
 ex_meth = 'ex_method'
+exchange_mode = Exchange(ex_meth, type='direct')
+
+mail_queue = 'mail_queue'
+mail_routing_key = 'mail_routing_key'
+
+ext_prd_queue = 'extended_product_card_queue'
 large_prd_routing_key = 'prd_routing_key'
 
 
@@ -35,11 +40,13 @@ celery_bg = Celery(
 
     include=[
         'core.bg_tasks.multi_bg_render_data',
+        'core.bg_tasks.account_recovery',
         'core.bg_tasks.celery_processing'
     ],
 )
 celery_bg.conf.result_expires = 600
 
 celery_bg.conf.tasks_queues = [
-    Queue(ext_prd_queue, exchange=Exchange(ex_meth, type='direct'), routing_key=large_prd_routing_key)
+    Queue(ext_prd_queue, exchange=exchange_mode, routing_key=large_prd_routing_key),
+    Queue(mail_queue, exchange=exchange_mode, routing_key=mail_routing_key)
 ]

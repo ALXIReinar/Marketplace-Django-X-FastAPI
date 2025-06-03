@@ -28,7 +28,7 @@ services:
   celery_worker:
     container_name: celery_worker_pied_market
     build: .
-    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
     environment:
       - DOCKERIZED=1
       - CELERY_WORKER=1
@@ -48,6 +48,19 @@ services:
       net_con:
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  smtp_service:
+    image: rnwood/smtp4dev
+    container_name: smtp4dev_pied_market
+    environment:
+      - ServerOptions__TlsCertificateFile=${SMTP_CERT_DOCKER}
+      - ServerOptions__TlsKeyFile=${SMTP_KEY_DOCKER}
+      - ServerOptions__TlsMode=StartTls
+    ports:
+      - "2525:25"
+      - "3000:80"
+    networks:
+      net_con:
 
 
 networks:

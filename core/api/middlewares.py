@@ -41,13 +41,13 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         end = time.perf_counter() - start
         if end > 7.0:
-            log_event(Events.long_response + f' {end: .4f}', request, level='WARNING')
+            log_event(Events.long_response + f' {end: .4f}', request=request, level='WARNING')
         return response
 
 class AuthUxMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        request.state.user_id = 1
-        request.state.session_id = '1'
+        request.state.user_id = request.state.user_id if hasattr(request.state, 'user_id') else 1
+        request.state.session_id = request.state.session_id if hasattr(request.state, 'session_id') else '1'
         now = datetime.utcnow()
         url = request.url.path
         if (url in apis_dont_need_auth or
@@ -58,18 +58,17 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             url.endswith('.ico') or
             url.endswith('.json') or
             url.startswith('/api/bg_tasks/') or
+            url.startswith('/api/users/passw/') or
           ((url.startswith('/api/products/') or
             url in apis_conditionally_req_auth) and not request.cookies)
         ):
-            log_event(Events.white_list_url, request,
-                user_id=request.state.user_id,
-                s_id=request.state.session_id)
+            log_event(Events.white_list_url + f" | user_id: {request.state.user_id}; s_id: {request.state.session_id}", request=request)
             return await call_next(request)
 
         encoded_access_token = request.cookies.get('access_token')
         if (access_token:= get_jwt_decode_payload(encoded_access_token)) == 401:
             # невалидный аксес_токен
-            log_event(Events.fake_aT_try, request, level='CRITICAL')
+            log_event(Events.fake_aT_try, request=request, level='CRITICAL')
             return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
         if datetime.utcfromtimestamp(access_token['exp']) < now:
             # аксес_токен ИСТЁК
@@ -78,10 +77,10 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             "процесс выпуска токена"
             async with init_pool() as db:
                 refresh_token = request.cookies.get('refresh_token')
-                new_token = await reissue_aT(access_token, refresh_token, db, request)
+                new_token = await reissue_aT(access_token, refresh_token, db)
                 if new_token == 401:
                     # рефреш_токен НЕ ВАЛИДЕН
-                    log_event(Events.fake_rT, request, s_id=access_token.get('s_id', ''), user_id=access_token.get('sub', ''), level='CRITICAL')
+                    log_event(Events.fake_rT + f"| s_id: {access_token.get('s_id', '')}; user_id: {access_token.get('sub', '')}", request=request, level='CRITICAL')
                     return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
                 request.cookies['access_token'] = new_token
 

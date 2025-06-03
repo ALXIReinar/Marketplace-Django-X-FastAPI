@@ -1,4 +1,5 @@
 from asyncpg import Connection
+from pydantic import EmailStr
 
 from core.config_dir.config import encryption
 
@@ -19,7 +20,13 @@ class UsersQueries:
         res = await self.conn.fetchrow(query, email)
         return res
 
+    async def get_id_name_by_email(self, email: EmailStr):
+        query = 'SELECT id, name FROM users WHERE email = $1'
+        return await self.conn.fetchrow(query, email)
 
+    async def set_new_passw(self, user_id: int, passw: str):
+        query = 'UPDATE users SET passw = $1 WHERE id = $2'
+        await self.conn.execute(query, passw, user_id)
 
 class AuthQueries:
     def __init__(self, conn: Connection):

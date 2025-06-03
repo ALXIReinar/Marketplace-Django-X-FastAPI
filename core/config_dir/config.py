@@ -1,17 +1,19 @@
 import os
-from contextlib import asynccontextmanager
+import ssl
 from datetime import timedelta
 from functools import lru_cache
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from aiobotocore.session import get_session
+from asyncpg import create_pool
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
+from aiobotocore.session import get_session
+from aiosmtplib import SMTP
 from passlib.context import CryptContext
-from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel
 
-from asyncpg import create_pool
 
 
 WORKDIR = Path(__file__).resolve().parent.parent.parent
@@ -48,6 +50,8 @@ class Settings(BaseSettings):
 
     redis_host: str
     redis_port: str
+    redis_host_docker: str
+    redis_port_docker: str
 
     elastic_user: str
     elastic_password: str
@@ -67,10 +71,19 @@ class Settings(BaseSettings):
     celery_broker_url: str
     celery_result_backend: str
 
+    smtp_host: str
+    smtp_port: int
+    smtp_host_docker: str
+    smtp_port_docker: int
+    smtp_tls_on: bool
+    smtp_cert: str
+    smtp_cert_docker: str
+
     JWTs: AuthConfig = AuthConfig()
     internal_host: str
     uvicorn_host: str
 
+    mail_sender: str
     dockerized: str | bool = os.getenv('DOCKERIZED', False)
     docker_db: bool = os.getenv('DOCKER_DB', False)
     cloud_db: bool = bool(os.getenv('CLOUD_DB', False))
@@ -95,29 +108,29 @@ es_client = AsyncElasticsearch(
 
 
 "PostgreSql"
-host = env.pg_host
-port = env.pg_port
+db_host = env.pg_host
+db_port = env.pg_port
 passw = env.pg_password
 if env.cloud_db:
     "БД-Облако"
-    host = env.pg_host_cl
-    port = env.pg_port_cl
+    db_host = env.pg_host_cl
+    db_port = env.pg_port_cl
     passw = env.pg_password_cl
 elif env.docker_db and env.celery_worker:
     "БД в Докере и запускается Воркер"
-    host = env.pg_host_celery_worker_docker_db
+    db_host = env.pg_host_celery_worker_docker_db
 elif not env.cloud_db and env.celery_worker:
     "Локальная БД и Воркер"
-    host = env.internal_host
+    db_host = env.internal_host
 elif env.docker_db:
     "БД в докере, Локалка подрубается"
-    port = env.pg_port_docker
+    db_port = env.pg_port_docker
 
 pool_settings = dict(
     user=env.pg_user,
     password=passw,
-    host=host,
-    port=port,
+    host=db_host,
+    port=db_port,
     database=env.pg_db,
     command_timeout=60
 )
@@ -138,3 +151,17 @@ async def cloud_session():
         }
         async with get_session().create_client('s3', **config) as session:
             yield session
+
+
+"SMTP Service"
+sender = "Pied Market"
+smtp_context = ssl.create_default_context(cafile=env.smtp_cert if not env.dockerized else env.smtp_cert_docker)
+smtp_context.check_hostname = False
+smtp_context.verify_mode = ssl.CERT_NONE
+smtp = SMTP(
+    hostname=env.smtp_host if not env.dockerized else env.smtp_host_docker,
+    port=env.smtp_port if not env.dockerized else env.smtp_port_docker,
+    timeout=60,
+    start_tls=env.smtp_tls_on,
+    tls_context=smtp_context
+)
