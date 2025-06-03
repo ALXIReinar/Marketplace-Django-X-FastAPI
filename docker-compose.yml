@@ -28,7 +28,7 @@ services:
   celery_worker:
     container_name: celery_worker_pied_market
     build: .
-    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
     environment:
       - DOCKERIZED=1
       - CELERY_WORKER=1
@@ -65,18 +65,18 @@ services:
       - ./pg_data:/var/lib/postgresql/data
       - ./dumps/marketplace_backup_31-05-2025_20-38.sql:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
 
-#  marketplace:
-#    container_name: MarketplaceFastAPI_marketplace
-#    build: .
-#    command: python core/main.py
-#    env_file:
-#      - ./.env
-#    depends_on:
-#      - pg_db
-#    restart: on-failure
-#
-#    networks:
-#      net_con:
+  smtp_service:
+    image: rnwood/smtp4dev
+    container_name: smtp4dev_pied_market
+    environment:
+      - ServerOptions__TlsCertificateFile=${SMTP_CERT_DOCKER}
+      - ServerOptions__TlsKeyFile=${SMTP_KEY_DOCKER}
+      - ServerOptions__TlsMode=StartTls
+    ports:
+      - "2525:25"
+      - "3000:80"
+    networks:
+      net_con:
 
 
 networks:
