@@ -178,3 +178,7 @@ pg_data/
 logs/
 rabbitmq_data/
 prj_certs/
+esdata01/
+es_certs/
+create_new_cert_p12_elastic/
+create_new_cert_p12_elastic/es_crt_util_certs/
