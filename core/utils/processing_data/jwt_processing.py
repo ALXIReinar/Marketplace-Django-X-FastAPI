@@ -24,7 +24,7 @@ async def reissue_aT(access_token: dict, refresh_token: str, db: PgSqlDep):
 
     if db_rT and (db_rT['seance'] and secrets.compare_digest(db_rT['refresh_token'], refresh_token)):
         # рефреш_токен СОВПАЛ с выданным и ещё НЕ ИСТЁК
-        log_event(Events.new_aT + f"s_id: {s_id}; user_id: {sub}")
+        log_event(Events.new_aT + f" | s_id: {s_id}; user_id: {sub}")
         new_access_token = issue_token(db, {'sub': sub, 's_id': s_id})
         return new_access_token
 

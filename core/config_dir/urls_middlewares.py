@@ -6,7 +6,3 @@ apis_dont_need_auth = {
     '/api/users/login',
 
 }
-
-apis_conditionally_req_auth = {
-    '/api/products/'
-}

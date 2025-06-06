@@ -28,5 +28,5 @@ async def prepare_mail(email: EmailStr, user: Record, reset_token: str):
     if user:
         confirm_code = str(randint(100_000, 999_999))
         await redis.set(reset_token, user['id'], ex=600)
-        await redis.set(str(user['id']), confirm_code, ex=600)
+        await redis.set(str(user['id']), confirm_code, ex=630)
         await send_confirm_code(email, user['name'], confirm_code)
