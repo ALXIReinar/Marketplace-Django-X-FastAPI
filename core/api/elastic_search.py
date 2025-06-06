@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from core.config_dir.base_dependencies import PagenSearchDep
 from core.config_dir.config import get_env_vars, es_client
+from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.schemas.product_schemas import SearchSchema
 from core.utils.anything import Tags
@@ -41,5 +42,6 @@ async def search(search_string: SearchSchema, db: PgSqlDep, pagen: PagenSearchDe
             size=pagen.limit,
         )
     ids_prdts = tuple(int(hit['_id']) for hit in search_res['hits']['hits'])
+    log_event("Поисковая выдача: search_string: \"%s\"; length hits: %s", search_string.text, len(ids_prdts), level='WARNING')
     layout_products = await db.products.products_by_id(ids_prdts)
     return {'products': layout_products}
