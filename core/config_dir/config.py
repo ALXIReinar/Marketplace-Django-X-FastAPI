@@ -144,11 +144,6 @@ pool_settings = dict(
     command_timeout=60
 )
 
-async def set_session():
-    connection = await create_pool(**pool_settings)
-    async with connection.acquire() as session:
-        yield session
-
 
 "S3 Storage"
 @asynccontextmanager
