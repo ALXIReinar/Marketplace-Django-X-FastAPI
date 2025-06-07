@@ -10,7 +10,8 @@ from starlette.responses import JSONResponse
 from core.config_dir.logger import log_event
 from core.data.postgre import init_pool
 from core.utils.anything import Events
-from core.config_dir.urls_middlewares import apis_dont_need_auth
+from core.config_dir.urls_middlewares import apis_dont_need_auth, white_list_postfix, white_list_prefix_cookies, \
+    white_list_prefix
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
@@ -51,16 +52,13 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
         request.state.user_id = 1
         request.state.session_id = '1'
         if (url in apis_dont_need_auth or
-            url.endswith('.html') or
-            url.endswith('.css') or
-            url.endswith('.png') or
-            url.endswith('.jpg') or
-            url.endswith('.ico') or
-            url.endswith('.json') or
-            url.startswith('/api/bg_tasks/') or
-            url.startswith('/api/users/passw/') or
-          (url.startswith('/api/products/') and not request.cookies)
+            any(tuple(url.endswith(postfix) for postfix in white_list_postfix)) or
+
+            any(tuple(url.startswith(prefix) for prefix in white_list_prefix)) or
+
+          (any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)) and not request.cookies)
         ):
+
             log_event(Events.white_list_url + " | length cookies: %s", len(request.cookies), request=request, level='WARNING')
             return await call_next(request)
 

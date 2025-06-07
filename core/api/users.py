@@ -2,15 +2,13 @@ import secrets
 from uuid import uuid4
 
 from fastapi import APIRouter, Response, Request, HTTPException
-from pydantic import EmailStr
 from starlette.responses import JSONResponse
 
 from core.bg_tasks.celery_processing import sending_email_code
 from core.data.postgre import PgSqlDep
-from core.data.redis_storage import redis
+from core.data.redis_storage import RedisDep
 from core.utils.processing_data.jwt_processing import issue_aT_rT
-from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema, ValidatePasswSchema, \
-    UpdatePasswSchema, RecoveryPasswSchema
+from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema, UpdatePasswSchema, RecoveryPasswSchema
 from core.config_dir.config import encryption
 from core.config_dir.logger import log_event
 from core.utils.anything import Tags, Events, hide_log_param
@@ -75,13 +73,13 @@ async def account_recovery(email: RecoveryPasswSchema, db: PgSqlDep, request: Re
 
 
 @router.get('/passw/compare_confirm_code')
-async def compare_mail_user_code(reset_token: str, code: str, request: Request):
+async def compare_mail_user_code(reset_token: str, code: str, request: Request, redis: RedisDep):
     pre_user_id = await redis.get(reset_token)
     if pre_user_id:
         "На случай, если вернутся на страницу назад, а в кэш-попадание уже было"
         user_id = pre_user_id.decode()
         server_code = await redis.get(user_id)
-        if secrets.compare_digest(server_code, code.encode()):
+        if server_code and secrets.compare_digest(server_code, code.encode()):
             await redis.delete(user_id)
             return {'success': True, 'message': 'Коды совпали, можно менять пароль'}
         log_event("Код пользователя и код на сервере не совпали! | user_id: %s", user_id, request=request, level='WARNING')
@@ -90,12 +88,13 @@ async def compare_mail_user_code(reset_token: str, code: str, request: Request):
     raise HTTPException(status_code=410, detail='Сессия истекла, повторите процедуру')
 
 
-@router.post('/passw/set_new_passw')
+@router.put('/passw/set_new_passw')
 async def reset_password(
         update_secrets: UpdatePasswSchema,
         db: PgSqlDep,
         response: Response,
-        request: Request
+        request: Request,
+        redis: RedisDep
 ):
     user_id = await redis.get(update_secrets.reset_token)
     if user_id:

@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:3
+    image: redis:7.2.9
     container_name: redis_pied_market
     command: redis-server
     ports:
@@ -63,7 +63,7 @@ services:
       - net_con
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./dumps/marketplace_backup_31-05-2025_20-38.sql:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
+      - ./dumps/{CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
 
   smtp_service:
     image: rnwood/smtp4dev
