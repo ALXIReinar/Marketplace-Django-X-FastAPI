@@ -10,7 +10,8 @@ from starlette.responses import JSONResponse
 from core.config_dir.logger import log_event
 from core.data.postgre import init_pool
 from core.utils.anything import Events
-from core.config_dir.urls_middlewares import apis_dont_need_auth, apis_conditionally_req_auth
+from core.config_dir.urls_middlewares import apis_dont_need_auth, white_list_postfix, white_list_prefix_cookies, \
+    white_list_prefix
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
@@ -46,24 +47,22 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
 
 class AuthUxMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        request.state.user_id = request.state.user_id if hasattr(request.state, 'user_id') else 1
-        request.state.session_id = request.state.session_id if hasattr(request.state, 'session_id') else '1'
         now = datetime.utcnow()
         url = request.url.path
+        request.state.user_id = 1
+        request.state.session_id = '1'
         if (url in apis_dont_need_auth or
-            url.endswith('.html') or
-            url.endswith('.css') or
-            url.endswith('.png') or
-            url.endswith('.jpg') or
-            url.endswith('.ico') or
-            url.endswith('.json') or
-            url.startswith('/api/bg_tasks/') or
-            url.startswith('/api/users/passw/') or
-          ((url.startswith('/api/products/') or
-            url in apis_conditionally_req_auth) and not request.cookies)
+            any(tuple(url.endswith(postfix) for postfix in white_list_postfix)) or
+
+            any(tuple(url.startswith(prefix) for prefix in white_list_prefix)) or
+
+          (any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)) and not request.cookies)
         ):
-            log_event(Events.white_list_url + f" | user_id: {request.state.user_id}; s_id: {request.state.session_id}", request=request)
+
+            log_event(Events.white_list_url + " | length cookies: %s", len(request.cookies), request=request, level='WARNING')
             return await call_next(request)
+
+
 
         encoded_access_token = request.cookies.get('access_token')
         if (access_token:= get_jwt_decode_payload(encoded_access_token)) == 401:
@@ -83,7 +82,6 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
                     log_event(Events.fake_rT + f"| s_id: {access_token.get('s_id', '')}; user_id: {access_token.get('sub', '')}", request=request, level='CRITICAL')
                     return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
                 request.cookies['access_token'] = new_token
-
 
         request.state.user_id = int(access_token['sub'])
         request.state.session_id = access_token['s_id']

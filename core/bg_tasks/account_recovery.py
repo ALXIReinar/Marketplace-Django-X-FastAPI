@@ -6,7 +6,7 @@ from pydantic import EmailStr
 
 from core.config_dir.config import smtp, env
 from core.config_dir.logger import log_event
-from core.data.redis_storage import redis
+from core.data.redis_storage import get_redis_connection
 from core.utils.anything import mail_ptn_forget_password_TEXT, mail_ptn_forget_password_HTML, hide_log_param
 
 
@@ -27,6 +27,7 @@ async def send_confirm_code(to: EmailStr | str, user_name: str, code: str):
 async def prepare_mail(email: EmailStr, user: Record, reset_token: str):
     if user:
         confirm_code = str(randint(100_000, 999_999))
-        await redis.set(reset_token, user['id'], ex=600)
-        await redis.set(str(user['id']), confirm_code, ex=600)
+        async with get_redis_connection() as redis:
+            await redis.set(reset_token, user['id'], ex=600)
+            await redis.set(str(user['id']), confirm_code, ex=630)
         await send_confirm_code(email, user['name'], confirm_code)

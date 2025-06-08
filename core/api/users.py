@@ -2,15 +2,13 @@ import secrets
 from uuid import uuid4
 
 from fastapi import APIRouter, Response, Request, HTTPException
-from pydantic import EmailStr
 from starlette.responses import JSONResponse
 
 from core.bg_tasks.celery_processing import sending_email_code
 from core.data.postgre import PgSqlDep
-from core.data.redis_storage import redis
+from core.data.redis_storage import RedisDep
 from core.utils.processing_data.jwt_processing import issue_aT_rT
-from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema, ValidatePasswSchema, \
-    UpdatePasswSchema
+from core.schemas.user_schemas import UserRegSchema, UserLogInSchema, TokenPayloadSchema, UpdatePasswSchema, RecoveryPasswSchema
 from core.config_dir.config import encryption
 from core.config_dir.logger import log_event
 from core.utils.anything import Tags, Events, hide_log_param
@@ -44,6 +42,7 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
 
         response.set_cookie('access_token', access_token, httponly=True)
         response.set_cookie('refresh_token', refresh_token, httponly=True)
+        log_event("Пользователь Вошёл в акк | user_id: %s", db_user['id'], request=request, level='INFO')
         return {'success': True, 'message': 'Куки у Юзера'}
     log_event(Events.unluck_login_user + f" email: {hide_log_param(creds.email)}", request=request, level='WARNING')
     raise HTTPException(status_code=401, detail='Неверный логин или пароль')
@@ -59,13 +58,13 @@ async def show_seances(request: Request, db: PgSqlDep):
 
 
 "Сброс Пароля"
-@router.get('/passw/forget_passw')
-async def account_recovery(email: EmailStr, db: PgSqlDep, request: Request):
-    log_event('Попытка сброса пароля | email: %s', hide_log_param(email), request=request, level='WARNING')
+@router.post('/passw/forget_passw')
+async def account_recovery(email: RecoveryPasswSchema, db: PgSqlDep, request: Request):
+    log_event('Попытка сброса пароля | email: %s', hide_log_param(email.email), request=request, level='WARNING')
 
-    user = await db.users.get_id_name_by_email(email)
+    user = await db.users.get_id_name_by_email(email.email)
     reset_token = str(uuid4())
-    sending_email_code.apply_async(args=[email, user, reset_token])
+    sending_email_code.apply_async(args=[email.email, user, reset_token])
 
     return JSONResponse(status_code=200, content={
         'reset_token': reset_token,
@@ -74,26 +73,28 @@ async def account_recovery(email: EmailStr, db: PgSqlDep, request: Request):
 
 
 @router.get('/passw/compare_confirm_code')
-async def compare_mail_user_code(reset_token: str, code: str, request: Request):
+async def compare_mail_user_code(reset_token: str, code: str, request: Request, redis: RedisDep):
     pre_user_id = await redis.get(reset_token)
     if pre_user_id:
         "На случай, если вернутся на страницу назад, а в кэш-попадание уже было"
         user_id = pre_user_id.decode()
         server_code = await redis.get(user_id)
-        if secrets.compare_digest(server_code, code.encode()):
+        if server_code and secrets.compare_digest(server_code, code.encode()):
             await redis.delete(user_id)
             return {'success': True, 'message': 'Коды совпали, можно менять пароль'}
         log_event("Код пользователя и код на сервере не совпали! | user_id: %s", user_id, request=request, level='WARNING')
         raise HTTPException(status_code=422, detail='Код неверный')
     log_event("Кто-то решил поиграться, или вернуться на прошлую страницу | reset_token: %s", reset_token, request=request, level='CRITICAL')
-    raise HTTPException(status_code=404, detail='Сессия истекла, повторите процедуру')
+    raise HTTPException(status_code=410, detail='Сессия истекла, повторите процедуру')
 
 
-@router.post('/passw/set_new_passw')
+@router.put('/passw/set_new_passw')
 async def reset_password(
         update_secrets: UpdatePasswSchema,
         db: PgSqlDep,
-        request: Request
+        response: Response,
+        request: Request,
+        redis: RedisDep
 ):
     user_id = await redis.get(update_secrets.reset_token)
     if user_id:
@@ -103,5 +104,5 @@ async def reset_password(
         await db.users.set_new_passw(int(user_id.decode()), hashed_passw)
         log_event("Юзер сменил Пароль | user_id: %s", user_id, request=request, level='WARNING')
         return {'success': True, 'message': 'Пароль обновлён!'}
-    log_event("Кто-то решил поиграться, или вернуться на прошлую страницу | reset_token: %s", update_secrets.reset_token, request=request, level='CRITICAL')
-    raise HTTPException(404, detail='Сессия утрачена. Повторите процедуру')
+    log_event("Кто-то решил поиграться, или вернуться на прошлую страницу; код истёк | reset_token: %s", update_secrets.reset_token, request=request, level='CRITICAL')
+    raise HTTPException(410, detail='Сессия утрачена. Повторите процедуру')

@@ -56,9 +56,9 @@ class Settings(BaseSettings):
     elastic_user: str
     elastic_password: str
     elastic_host: str
+    elastic_host_docker: str
     elastic_port: str
-    elastic_certs: str
-    elastic_certs_docker: str
+    elastic_cert: str
     search_index: str
 
     s3_access_key: str
@@ -84,10 +84,11 @@ class Settings(BaseSettings):
     uvicorn_host: str
 
     mail_sender: str
-    dockerized: str | bool = os.getenv('DOCKERIZED', False)
+    dockerized: bool = os.getenv('DOCKERIZED', False)
     docker_db: bool = os.getenv('DOCKER_DB', False)
-    cloud_db: bool = bool(os.getenv('CLOUD_DB', False))
-    celery_worker: str | bool = os.getenv('CELERY_WORKER', False)
+    cloud_db: bool = os.getenv('CLOUD_DB', False)
+    docker_es: bool = os.getenv('DOCKER_ES', False)
+    celery_worker: bool = os.getenv('CELERY_WORKER', False)
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
 
@@ -97,14 +98,22 @@ def get_env_vars():
 env = get_env_vars()
 
 "ElasticSearch"
-es_client = AsyncElasticsearch(
-    hosts=[
-        f'https://{env.elastic_host}:{env.elastic_port}'
-    ],
-    basic_auth=(env.elastic_user,env.elastic_password),
-    ca_certs=env.elastic_certs_docker if env.dockerized else env.elastic_certs,
+es_host = env.elastic_host
+es_settings = dict(
+    basic_auth=(env.elastic_user, env.elastic_password),
+    ca_certs=env.elastic_cert,
     verify_certs=False
 )
+if env.dockerized:
+    es_host = env.elastic_host_docker
+es_link = f'https://{es_host}:{env.elastic_port}'
+es_settings['hosts'] = [es_link]
+if env.docker_es:
+    es_link = f'http://{es_host}:{env.elastic_port}'
+    es_settings = dict(
+        hosts=[es_link]
+    )
+es_client = AsyncElasticsearch(**es_settings)
 
 
 "PostgreSql"
@@ -134,11 +143,6 @@ pool_settings = dict(
     database=env.pg_db,
     command_timeout=60
 )
-
-async def set_session():
-    connection = await create_pool(**pool_settings)
-    async with connection.acquire() as session:
-        yield session
 
 
 "S3 Storage"

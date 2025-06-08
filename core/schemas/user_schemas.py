@@ -46,6 +46,9 @@ class UserRegSchema(ValidatePasswSchema):
     email: EmailStr
     name: Annotated[str | None, Field(default='Пользователь Pied Market')]
 
+class RecoveryPasswSchema(BaseModel):
+    email: EmailStr
+
 
 class TokenPayloadSchema(BaseModel):
     id: int

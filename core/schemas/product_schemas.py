@@ -26,3 +26,6 @@ class PaginationSchema(BaseModel):
 
 class PaginationSearchSchema(PaginationSchema):
     limit: int = Field(40)
+
+class PaginationFavoriteSchema(PaginationSchema):
+    limit: int = Field(20)
