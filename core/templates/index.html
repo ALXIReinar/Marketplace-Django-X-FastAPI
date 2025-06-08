@@ -11,10 +11,12 @@
       href="https://fonts.googleapis.com/css?family=
       Kaushan+Script|
       Montserrat:400,700&amp;subset=cyrillic-ext"
-      rel="stylesheet"
-    />
+      rel="stylesheet"/>
+      <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
   </head>
-  <header class="header">
+  
+  <body>
+    <header class="header">
     <div class="container">
       <div class="header_inner">
         <div class="logo">
@@ -46,8 +48,7 @@
         <a href="#">Бытовая химия и гигиена</a>
         <a href="#">Музыка и видеох</a>
         <a href="#">автомобили</a>
-        
-    </div>
+        </div>
         </nav>
         <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -80,89 +81,341 @@
   <a class="nav__link" href="#">Корзина</a>
   <a class="nav__link auth-trigger" href="#" data-auth-type="favorites">Избранное</a>
   <a class="nav__link" href="#">Чат</a>
-  <a class="nav__link auth-trigger" href="#" data-auth-type="profile">Профиль</a>
+  <a class="nav__link auth-trigger" href="#" id="Profile_id" data-auth-type="profile">Профиль</a>
 </nav>
         </div>
       </div>
     </div>
   </header>
-  <body>
-    <div class="cards">
-      <div class="card">
-        <div class="card__top">
-          <a href="#" class="card__image">
-          <img src="images/products_img/photo_2025-05-13_10-48-50.jpg" alt="Apple iphone 15 Pro 128Гб, титан " class="card__image">
-          </a>
-          <div class="card__label">-10%</div>
-          <button class="favorites">
-            <img src="images/icon+file/free-icon-like-3641323.png" alt=" Избранное" class="favorites_icon">
-          </button>
-        </div>
-        <div class="card_bottom">
-          <div class="card__prices">
-            <diV class="card__price card__price--discount">135000</div>
-              <div class="card__price card__price--common">150000</div>
-          </div>
-          <a href="#" class="card_title">
-            Смартфон Apple iphone 15 Pro 128Гб, титан
-          </a>
-        </div>
-        </div>     
-    </div>
-    <script>
-  async function fetchData() {
-    try {const response = await fetch('http://127.0.0.1:8000/api/products/', {
-        method: 'POST',
-        body: JSON.stringify({
-          limit: 60,
-          offset: 0
-        })
-      }); 
-      const data = await response.json();
-      displayData(data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+  <div  id="products-container">
+  </div>
+  <script>
+    async function fetchData() {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/products/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            limit: 60,
+            offset: 0
+          })
+        });
+        const data = await response.json();
+        displayData(data);
+      } catch (error) {
+        console.error('Ошибка при получении данных:', error);
+        const container = document.getElementById('products-container');
+        container.innerHTML = '<p>Ошибка загрузки данных.</p>';
+      }
+    }
+    function displayData(data) {
       const container = document.getElementById('products-container');
-      container.innerHTML = '<p>Ошибка загрузки данных.</p>';
-    }
-  }
-  function displayData(data) {
-    const container = document.getElementById('products-container');
-    container.innerHTML = '';
-    if (data.products && data.products.length > 0) {
-      data.products.forEach(product => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        
-        card.innerHTML = `
-          <div class="card__top">
-            <a href="#" class="card__image">
-              <img src="images/photo_2025-05-13_10-48-50.jpg" alt="${product.prd_name}" class="card__image">
-            </a>
-            <div class="card__label"></div>
-            <button class="favorites">
-              <img src="images/free-icon-like-3641323.png" alt="Избранное" class="favorites_icon">
-            </button>
-          </div>
-          <div class="card_bottom">
-            <div class="card__prices">
-              <div class="card__price card__price--common">${product.cost} руб.</div>
+      container.innerHTML = ''; 
+
+      const cardsWrapper = document.createElement('div');
+      cardsWrapper.className = 'cards';
+
+      if (data.products && data.products.length > 0) {
+        data.products.forEach(product => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.addEventListener('click', () => {
+            window.location.href = `product.html?id=${product.id}`;
+          });
+
+          card.innerHTML = `
+            <div class="card__top">
+              <a href="product.html?id=${product.id}" class="card__image">
+                <img src="images/${product.path}" alt="${product.prd_name}">
+              </a>
+              <div class="card__label"></div>
+              <button class="favorites"></button>
             </div>
-            <a href="#" class="card_title">${product.prd_name}</a>
-          </div>`
-          ;
-        
-        container.appendChild(card);
-      });
-    } else {
-      container.innerHTML = '<p>Нет товаров для отображения.</p>';
+            <div class="card_bottom">
+              <div class="card__prices">
+                <diV class="card__price card__price--discount">${product.cost}</div>
+                <div class="card__price card__price--common">${product.cost}</div>
+              </div>
+              <a href="product.html?id=${product.id}" class="card_title">${product.prd_name}</a>
+            </div>
+          `;
+          cardsWrapper.appendChild(card);
+        });
+        container.appendChild(cardsWrapper);
+      } else {
+        container.innerHTML = '<p>Нет товаров для отображения.</p>';
+      }
     }
-  }
+    document.addEventListener('DOMContentLoaded', fetchData);
+  </script>
+  <div id="authModal" class="auth-modal" style="display: none;">
+    <div class="auth-modal-content">
+      <div class="form-wrapper">
+        <div class="wrapper">
+          <form id="loginForm" style="display: block;">
+            <h1>Login</h1>
+            <div class="input-box">
+              <input type="email" id="loginEmail" placeholder="Email" required>
+              <i class='bx bx-envelope'></i>
+            </div>
+            <div class="input-box">
+              <input type="password" id="loginPassword" placeholder="Password" required>
+              <i class='bx bx-lock-alt'></i>
+            </div>
+            <div class="forgot-password">
+              <a href="#" class="show-forgot-link">Forgot password?</a>
+            </div>
+            <button type="submit" class="btn">Login</button>      
+            <div class="register-link">
+              <a href="#" class="show-register-link">Don't have an account?</a>
+            </div>
+            <div id="loginErrors" style="color: red; font-size: 12px; margin-top: 5px;"></div>
+          </form>
+          <form id="registrationForm" style="display: none;">
+            <h1>Register</h1>
+            <div class="input-box">
+              <input type="email" id="regEmail" placeholder="Email" required>
+              <i class='bx bx-envelope'></i>
+            </div>
+            <div class="input-box">
+              <input type="password" id="regPassword" placeholder="Password" required>
+              <i class='bx bx-lock-alt'></i>
+              <div id="passwordErrors" style="color: red; font-size: 12px; margin-top: 5px;"></div>
+            </div>
+            <div class="terms-checkbox">
+              <input type="checkbox" id="agreeTerms" required>
+              <label for="agreeTerms">I agree to the <a href="/terms.html" target="_blank" class="user_agree">Terms of Service</a></label>
+            </div>
+            <button type="submit" class="btn">Register</button>      
+            <div class="login-link">
+              <a href="#" class="show-login-link">Already have an account?</a>
+            </div>
+          </form>
+          <form id="forgotPasswordForm" style="display: none;">
+            <h1>Reset Password</h1>
+            <div class="input-box">
+              <input type="email" id="resetEmail" placeholder="Email" required>
+              <i class='bx bx-envelope'></i>
+            </div>
+            <button type="submit" class="btn">Send Reset Link</button>
+            <div class="login-link">
+              <a href="#" class="show-login-link">Remember your password?</a>
+            </div>
+            <div id="forgotErrors" style="color: red; font-size: 12px; margin-top: 5px;"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const registrationAttempts = {};
+    const BLOCK_DURATION = 30 * 60 * 1000; 
 
-  document.addEventListener('DOMContentLoaded', fetchData);
-</script>
+    function openAuthModal() {
+      const modal = document.getElementById('authModal');
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        modal.classList.add('active');
+      }, 10);
+    }
+    function closeAuthModal() {
+      const modal = document.getElementById('authModal');
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('Profile_id').addEventListener('click', function(e) {
+        e.preventDefault();
+        openAuthModal();
+        showForm('loginForm');
+      });
+      document.getElementById('authModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeAuthModal();
+        }
+      });
+      document.querySelectorAll('.show-register-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          showForm('registrationForm');
+        });
+      });
 
+      document.querySelectorAll('.show-login-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          showForm('loginForm');
+        });
+      });
 
+      document.querySelectorAll('.show-forgot-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          showForm('forgotPasswordForm');
+        });
+      });
 
-  </body>
+      document.getElementById('registrationForm').addEventListener('submit', handleRegistration);
+      document.getElementById('loginForm').addEventListener('submit', handleLogin);
+      document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
+    });
+    function showForm(formId) {
+      const forms = ['loginForm', 'registrationForm', 'forgotPasswordForm'];
+      forms.forEach(id => {
+        document.getElementById(id).style.display = id === formId ? 'block' : 'none';
+      });
+    }
+    async function handleRegistration(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const agreeTerms = document.getElementById('agreeTerms').checked;
+      const errorElement = document.getElementById('passwordErrors');
+      errorElement.textContent = '';
+      
+      if (!email || !password) {
+        errorElement.textContent = 'Please fill in all fields';
+        return;
+      }
+
+      if (!agreeTerms) {
+        errorElement.textContent = 'You must agree to the Terms of Service';
+        return;
+      }
+      if (registrationAttempts[email] && registrationAttempts[email].blockedUntil > Date.now()) {
+        const remainingTime = Math.ceil((registrationAttempts[email].blockedUntil - Date.now()) / (60 * 1000));
+        errorElement.textContent = `Too many attempts. Please try again in ${remainingTime} minutes.`;
+        return;
+      }
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/users/sign_up', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: email,
+            passw: password
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (!registrationAttempts[email]) {
+            registrationAttempts[email] = { attempts: 0, blockedUntil: 0 };
+          }
+          registrationAttempts[email].attempts++;
+          
+          if (registrationAttempts[email].attempts >= 3) {
+            registrationAttempts[email].blockedUntil = Date.now() + BLOCK_DURATION;
+            const remainingTime = Math.ceil(BLOCK_DURATION / (60 * 1000));
+            errorElement.textContent = `Too many attempts. You are blocked for ${remainingTime} minutes.`;
+          } else {
+            errorElement.textContent = data.detail || 'Registration failed';
+          }
+          return;
+        }
+        if (registrationAttempts[email]) {
+          registrationAttempts[email] = { attempts: 0, blockedUntil: 0 };
+        }
+        document.getElementById('registrationForm').reset();
+        showForm('loginForm');
+        
+      } catch (error) {
+        console.error('Error:', error);
+        errorElement.textContent = 'Registration error. Please try again.';
+      }
+    }
+    async function handleLogin(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorElement = document.getElementById('loginErrors');
+      errorElement.textContent = '';  
+      if (!email || !password) {
+        errorElement.textContent = 'Please fill in all fields';
+        return;
+      }
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/users/login', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: email,
+            passw: password
+          })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          errorElement.textContent = data.detail || 'Invalid email or password';
+          return;
+        }
+        const authToken = data.token || data.access_token || data;
+        if (typeof authToken === 'object') {
+          localStorage.setItem('authToken', JSON.stringify(authToken));
+        } else {
+          localStorage.setItem('authToken', authToken);
+        }
+        
+        closeAuthModal();
+        
+      } catch (error) {
+        console.error('Error:', error);
+        errorElement.textContent = 'Connection error. Please try again.';
+      }
+    }
+    async function handleForgotPassword(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('resetEmail').value;
+      const errorElement = document.getElementById('forgotErrors');
+      errorElement.textContent = '';
+      
+      if (!email) {
+        errorElement.textContent = 'Please enter your email';
+        return;
+      }
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/users/forgot_password', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: email
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          errorElement.textContent = data.detail || 'Password reset failed';
+          return;
+        }
+
+        alert('Password reset link has been sent to your email');
+        showForm('loginForm');
+        
+      } catch (error) {
+        console.error('Error:', error);
+        errorElement.textContent = 'Connection error. Please try again.';
+      }
+    }
+  </script>
+</body>
 </html>

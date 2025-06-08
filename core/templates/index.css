@@ -1,19 +1,19 @@
-.body{
-    margin: 0;
-    font-family: "Montserrat", sans-serif; 
-     background-color: #a88989;
-    font-size: 30px;
-    line-height: 1.6;
-    color: #333;
-   
+*{
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
 }
-*,
-*:after
-*::before
-{
-    box-sizing: border-box;
-    
+body {
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  font-family: mo;
+  background-color: #f0f0f0; 
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
+ 
 }
+
 .Container{
     width: 100%;
     max-width: 1200px;
@@ -31,7 +31,7 @@
     position: relative;
     color: black;
     text-decoration: none;
-    transition: background-color 0,3s;
+    transition: background-color 0.3s;
     padding-bottom: 5px;
 }
 .nav__link:after{
@@ -65,7 +65,7 @@
     position: relative;
     color: black;
     text-decoration: none;
-    transition: background-color 0,3s;
+    transition: background-color 0.3s;
     padding-bottom: 5px;
     user-select: none;
     
@@ -108,7 +108,9 @@ header{
     align-items: center;
     flex-wrap: wrap;
     gap: 20px;
+    flex-wrap: wrap;
     padding: 0 20px;
+    
 }
 .nav{
     font-size: 16px;
@@ -122,6 +124,8 @@ header{
 }
 /*Search*/
 .search_container{
+   width: 100%;
+  max-width: 600px;
     display: flex;
     font-size: 16px;
     width: 600px;
@@ -143,7 +147,8 @@ header{
             background-color: #567e7c;
             border: none;
             color: #567e7c;
-            border: none;
+
+     border: none;
             border-radius: 4px 0 0 4px;
             cursor: pointer;
         }
@@ -227,13 +232,12 @@ header{
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(5, 270px);
+   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   width: 100%;
-  column-gap: 25px; 
+  margin: 20px;
+  column-gap: 30px; 
   row-gap: 40px;
-  margin-top: 20px;
   margin: 0 auto;
-  justify-self: center;
   background-color: #f0f0f0;
   border-radius: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -244,7 +248,6 @@ header{
   margin-top: 20px;
   box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
-  margin-left: 20px;
   flex-direction: column;
   border-radius: 8px;
   transition: 0.2s;
@@ -277,6 +280,7 @@ header{
   padding: 4px 8px;
   position: absolute;
   bottom: 30px;
+  margin-left: 5px;
   color: #fff;
   background-color: #a88989;
   border-radius: 4px;
@@ -295,6 +299,7 @@ header{
   align-items: baseline;
   gap: 10px;
   margin-bottom: 8px;
+   justify-content: flex-end;
 }
 
 .card__price {
@@ -309,21 +314,24 @@ header{
 
 .card__price--discount {
   font-weight: bold;
-  font-size: 18px;
+  font-size: 16px;
   color: #2c9e41;
+  
 }
 
 .card__price--common {
   font-size: 14px;
   color: #999;
   text-decoration: line-through;
+  margin-right: 160px;
 }
 
-.card__title {
+.card_title {
   font-size: 14px;
   color: #333;
   text-decoration: none;
   margin-bottom: 10px;
+  margin-left: 5px;
 }
 
 .favorites {
@@ -351,65 +359,140 @@ header{
   background-color: #7c0f0f;
 }
 /*Regisration*/
-.auth-overlay {
+.wrapper{
+  width: 420px;
+  background: #567e7c;
+  color: #fff;
+  padding: 30px 40px;
+}
+.wrapper h1{
+  font-size: 36px;
+  text-align: center;
+}
+.wrapper .input-box{
+  width: 100%;
+  height: 50px;
+  margin: 30px 0;
+  position: relative;
+}
+.input-box input{
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  border: solid rgba(255, 102, 51, 0.2);
+  border-radius: 40px;
+  font-size: 15px;
+  color: #fff;
+  padding: 20px 45px 20px 20px;
+
+}
+.input-box input::placeholder{
+  color: #fff;
+}
+.input-box i{
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.wrapper .remember{
+  display: flex;
+  justify-content: space-between;
+  font-size: 14.5px;
+  margin: -15px 0 15px ;
+}
+.remember label input{
+  accent-color: #fff;
+  margin-right: 5px;
+}
+.remember a{
+  color: #fff;
+  text-decoration: none;
+  
+}
+.remember a:hover{
+  text-decoration: underline;
+}
+.wrapper .btn{
+  width: 100%;
+  height: 45px;
+  background: #fff;
+  border: none;
+  outline: none;
+  border-radius: 45px;
+  box-shadow: 0 0 10px rgb(0,0,0, .1);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+.wrapper .register_link{
+  font-size: 14px;
+  text-align: center;
+  margin-top: 20px;
+}
+.register_link p a{
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+}
+.register_link p a:hover{
+  text-decoration: underline;
+  color: #aebebd;
+}
+.form-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+.auth-modal {
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.5);
-  display: none;
+  z-index: 1000;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
-}
-.auth-modal {
-  background: white;
-  padding: 25px;
-  border-radius: 10px;
-  width: 350px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  position: relative;
-}
-.close-auth {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-.auth-form input {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.3s ease; 
 }
 
-.auth-form button {
-  background: #0066ff;
-  color: white;
-  padding: 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
+.auth-modal.active {
+  display: flex; 
+  opacity: 1;   
 }
 
-.auth-links {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
+.auth-modal-content {
+  padding: 20px;
+  border-radius: 8px;
+
+  transform: translateY(-20px); 
+  transition: transform 0.3s ease; 
 }
 
-.auth-links a {
-  color: #0066ff;
-  text-decoration: none;
-  font-size: 13px;
+.auth-modal.active .auth-modal-content {
+  transform: translateY(0); 
+}
+.terms-content{
+  margin-left: 20px ;
+}
+.show-forgot-link{
+ color: #333;
+ margin-top: 20px;
+  
+}
+.show-register-link{
+  color: #333;
+  padding-top: 20px;
+}
+.show-login-link{
+  color: #333;
+}
+.user_agree{
+  color: #333;
 }

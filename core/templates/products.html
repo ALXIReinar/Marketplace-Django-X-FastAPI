@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details - Pied Marketplace</title>
+    <link rel="stylesheet" href="product.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Kaushan+Script|Montserrat:400,700&amp;subset=cyrillic-ext" rel="stylesheet">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+    <header class="header">
+ <div class="container">
+      <div class="header_inner">
+        <div class="logo">
+          Pied Market
+        </div>
+        <nav class="pop_up">
+          <a class="pop_up_nav " id="Category_link">Каталог</a>
+            <div class="dropdown-content">
+           <a href="#">Электроника</a>
+        <a href="#">Одежда</a>
+        <a href="#">Обувь</a>
+        <a href="#">Дом и сад</a>
+        <a href="#">Красота и здоровье</a>
+        <a href="#">Бытовая техника</a>
+        <a href="#">Спорт и отдых</a>
+        <a href="#">Строительство и ремонт</a>
+        <a href="#">Продукты питания</a>
+        <a href="#">Товары дял животных</a>
+        <a href="#">Книги</a>
+        <a href="#">Туризм,Рыбалка,Охото</a>
+        <a href="#">Автотовары</a>
+        <a href="#">Мебель</a>
+        <a href="#">Хобби и творчество</a>
+        <a href="#">Ювелирные украшения</a>
+        <a href="#">Аксесуары</a>
+        <a href="#">Игры и консоли</a>
+        <a href="#">Антикавриат и коллекционирование</a>
+        <a href="#">Цифровые Товары</a>
+        <a href="#">Бытовая химия и гигиена</a>
+        <a href="#">Музыка и видеох</a>
+        <a href="#">автомобили</a>
+        
+    </div>
+        </nav>
+        <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const categoryLink = document.getElementById('Category_link');
+        const popUpNav = document.querySelector('.pop_up');
+        categoryLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            popUpNav.classList.toggle('active');
+        });
+        document.addEventListener('click', function(e) {
+            if (!popUpNav.contains(e.target)) {
+                popUpNav.classList.remove('active');
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                popUpNav.classList.remove('active');
+            }
+        });
+    });
+</script>
+        <div class="search_container">
+        <input class="search_txt" type="text" name="" placeholder="Search product">
+        <button class="search_btn">
+         <img src="images/icon+file/icons8-поиск-24.png" alt="">
+        </button>
+        </div>
+  <nav class="nav_link">
+  <a class="nav__link" href="#">Заказы</a>
+  <a class="nav__link" href="#">Корзина</a>
+  <a class="nav__link auth-trigger" href="#" data-auth-type="favorites">Избранное</a>
+  <a class="nav__link" href="#">Чат</a>
+  <a class="nav__link auth-trigger" href="#" id="Profile_id" data-auth-type="profile">Профиль</a>
+</nav>
+        </div>
+      </div>
+    </div>
+    </header>
+
+    <div class="product-container">
+        <div class="product-header">
+            <h1 id="product-title">Название товара</h1>
+            <div class="product-id">ID: <span id="product-id"></span></div>
+        </div>
+        <div class="product-main">
+            <div class="product-gallery">
+                <div class="main-image">
+                    <img id="product-image" src="" alt="Основное изображение товара">
+                </div>
+                <div class="thumbnails">
+                </div>
+            </div>
+
+            <div class="product-info">
+                <div class="price-section">
+                    <div class="current-price" id="product-price">0 ₽</div>
+                    <div class="old-price" id="product-old-price"></div>
+                </div>
+
+                <div class="product-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Бренд:</span>
+                        <span class="meta-value" id="product-brand">Tefal</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Артикул:</span>
+                        <span class="meta-value" id="product-sku">123456</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Рейтинг:</span>
+                        <span class="meta-value" id="product-rating">4.5</span>
+                    </div>
+                </div>
+
+                <div class="product-actions">
+                    <div class="quantity-selector">
+                        <button class="quantity-btn minus">-</button>
+                        <input type="number" value="1" min="1" class="quantity-input">
+                        <button class="quantity-btn plus">+</button>
+                    </div>
+                    <button class="add-to-cart-btn">Добавить в корзину</button>
+                    <button class="favorite-btn">
+                        <i class="far fa-heart"></i>
+                    </button>
+                </div>
+
+                <div class="delivery-info">
+                    <div class="delivery-item">
+                        <i class="fas fa-truck"></i>
+                        <span>Доставка: завтра, 350 ₽</span>
+                    </div>
+                    <div class="delivery-item">
+                        <i class="fas fa-store"></i>
+                        <span>Самовывоз: бесплатно</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="product-tabs">
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="description">Описание</button>
+                <button class="tab-btn" data-tab="specs">Характеристики</button>
+                <button class="tab-btn" data-tab="reviews">Отзывы</button>
+            </div>
+            <div class="tabs-content">
+                <div class="tab-pane active" id="description">
+                    <h3>Описание товара</h3>
+                    <p id="product-description">Здесь будет подробное описание товара...</p>
+                </div>
+                <div class="tab-pane" id="specs">
+                    <h3>Характеристики</h3>
+                    <table class="specs-table" id="product-specs">
+                    </table>
+                </div>
+                <div class="tab-pane" id="reviews">
+                    <h3>Отзывы покупателей</h3>
+                    <div class="reviews-container" id="product-reviews">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="product-footer">
+            <div class="similar-products">
+                <h3>Похожие товары</h3>
+                <div class="similar-items" id="similar-products">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+        async function loadProductData() {
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/api/products/${productId}`);
+                const product = await response.json();
+                document.getElementById('product-title').textContent = product.prd_name;
+                document.getElementById('product-id').textContent = product.id;
+                document.getElementById('product-image').src = `images/${product.path}`;
+                document.getElementById('product-price').textContent = `${product.cost} ₽`;
+                document.getElementById('product-description').textContent = product.description || 'Описание отсутствует';
+                if (product.specs) {
+                    const specsTable = document.getElementById('product-specs');
+                    for (const [key, value] of Object.entries(product.specs)) {
+                        const row = specsTable.insertRow();
+                        row.insertCell(0).textContent = key;
+                        row.insertCell(1).textContent = value;
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Ошибка загрузки данных о товаре:', error);
+            }
+        }
+        function initTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabPanes.forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    const tabId = btn.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+        function initQuantitySelector() {
+            const minusBtn = document.querySelector('.quantity-btn.minus');
+            const plusBtn = document.querySelector('.quantity-btn.plus');
+            const quantityInput = document.querySelector('.quantity-input');
+            
+            minusBtn.addEventListener('click', () => {
+                let value = parseInt(quantityInput.value);
+                if (value > 1) {
+                    quantityInput.value = value - 1;
+                }
+            });
+            
+            plusBtn.addEventListener('click', () => {
+                let value = parseInt(quantityInput.value);
+                quantityInput.value = value + 1;
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (productId) {
+                loadProductData();
+            } else {
+                window.location.href = 'index.html';
+            }
+            
+            initTabs();
+            initQuantitySelector();
+        });
+    </script>
+</body>
+</html>
