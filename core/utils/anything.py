@@ -19,6 +19,7 @@ class Tags:
     orders = 'Заказы'
     elastic_products = 'Товары *Elastic🔎*'
     celery_bg = 'Celery Фон🥬🐇'
+    chat = 'Мессенджер💬'
 
 @dataclass
 class Events:

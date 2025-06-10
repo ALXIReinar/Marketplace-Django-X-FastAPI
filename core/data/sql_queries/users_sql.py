@@ -56,3 +56,28 @@ class AuthQueries:
         query = 'SELECT user_agent, ip FROM sessions_users WHERE user_id = $1 AND session_id = $2'
         res = await self.conn.fetch(query, user_id, session_id)
         return res
+
+
+class ChatQueries:
+    def __init__(self, conn: Connection):
+        self.conn = conn
+
+    async def get_user_chats(self, user_id: int, limit: int, offset: int):
+        query = '''
+        
+WITH last_msg AS (
+    SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
+    FROM chat_messages
+    WHERE chat_id IN (
+        SELECT chat_id FROM chats_users WHERE user_id = 27
+    )
+    ORDER BY chat_id, writed_at DESC
+)
+SELECT c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode FROM chats_users c_u
+JOIN last_msg l ON c_u.chat_id = l.chat_id
+WHERE c_u.user_id = 27 AND c_u.state BETWEEN 1 AND 2
+ORDER BY l.writed_at DESC
+LIMIT 30 OFFSET 0
+
+        '''
+        chat_records = await self.conn.fetch(query, user_id, limit, offset)

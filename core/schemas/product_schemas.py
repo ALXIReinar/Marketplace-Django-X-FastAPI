@@ -29,3 +29,6 @@ class PaginationSearchSchema(PaginationSchema):
 
 class PaginationFavoriteSchema(PaginationSchema):
     limit: int = Field(20)
+
+class PaginationChatSchema(PaginationSchema):
+    limit: int = Field(30)
