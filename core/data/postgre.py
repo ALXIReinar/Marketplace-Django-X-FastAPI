@@ -10,7 +10,7 @@ from typing_extensions import Optional
 from core.config_dir.config import pool_settings
 from core.data.sql_queries.multi_render_prd_sql import ExtendedProduct
 from core.data.sql_queries.products_sql import ProductsQueries
-from core.data.sql_queries.users_sql import UsersQueries, AuthQueries
+from core.data.sql_queries.users_sql import UsersQueries, AuthQueries, ChatQueries
 
 
 class PgSql:
@@ -19,6 +19,7 @@ class PgSql:
 
         self.users = UsersQueries(conn)
         self.auth = AuthQueries(conn)
+        self.chats = ChatQueries(conn)
 
         self.products = ProductsQueries(conn)
         self.extended_product = ExtendedProduct(conn)
