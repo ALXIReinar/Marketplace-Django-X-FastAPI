@@ -1,17 +1,17 @@
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from starlette.requests import Request
 from starlette.websockets import WebSocket
 
-from core.config_dir.base_dependencies import PagenChatDep
+from core.config_dir.base_dependencies import PagenChatDep, PagenChatMessDep
 from core.config_dir.config import broadcast
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
-from core.schemas.chat_schema import WSMessageSchema
-from core.schemas.user_schemas import WSOpenCloseSchema
+from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema
 from core.utils.anything import Tags, WSControl
 from core.utils.broadcast_channel import pub_sub
+from core.utils.celery_serializer import convert
 
 router = APIRouter(prefix='/api/chats', tags=[Tags.chat])
 
@@ -34,11 +34,18 @@ async def get_chats(pagen: PagenChatDep, request: Request, db: PgSqlDep):
     return {'chat_records': chats}
 
 
-@router.websocket('/{chat_id}')
-async def ws_control(contract_obj: WSOpenCloseSchema, ws: WebSocket, request: Request, db: PgSqlDep):
+@router.websocket('/ws')
+async def ws_control(contract_obj: WSOpenCloseSchema, pagen: PagenChatMessDep, ws: WebSocket, request: Request, db: PgSqlDep):
     await ws.accept()
     if contract_obj.event == WSControl.open:
         chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
+
+        "Получаем последние сообщения"
+        last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset)
+        log_event("Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=request)
+        await ws.send_json({'event': WSControl.last_messages, "messages":convert(last_chat_messages)})
+
+        "Открываем вещание"
         task = asyncio.create_task(
             pub_sub(chat_channel, broadcast, ws)
         )
@@ -55,3 +62,17 @@ async def ws_control(contract_obj: WSOpenCloseSchema, ws: WebSocket, request: Re
 
 @router.post('/send_message')
 async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSqlDep):
+    if contract_obj.event != WSControl.send_msg:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал для JSON'})
+
+    saved_msg_id = await db.chats.save_message(
+        chat_id=contract_obj.chat_id,
+        user_id=request.state.user_id,
+        msg_type=contract_obj.type,
+        text_field=contract_obj.text_field,
+        reply_id=contract_obj.reply_id
+    )
+    log_event("Сохранено сообщение #%s; chat_id: %s", saved_msg_id, contract_obj.chat_id, request=request)
+    await broadcast.publish(f'{WSControl.ws_chat_channel}:{contract_obj.chat_id}', message={'success': True, 'msg_id': saved_msg_id})
+
+

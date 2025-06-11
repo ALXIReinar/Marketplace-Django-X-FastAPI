@@ -50,11 +50,9 @@ class WSControl:
     open: str = 'view_chat'
     close: str = 'close_chat'
     ws_chat_channel: str = 'chat'
+    send_msg: str = 'send_msg'
+    last_messages: str = 'last_messages_layout'
 
-@dataclass
-class WSControl:
-    open: str = 'view_chat'
-    close: str = 'close_chat'
 
 mail_ptn_forget_password_HTML='''
 <!DOCTYPE html>

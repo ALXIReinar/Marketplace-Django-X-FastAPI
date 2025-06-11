@@ -48,6 +48,12 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
     raise HTTPException(status_code=401, detail='Неверный логин или пароль')
 
 
+@router.put('/logout')
+async def log_out(request: Request, response: Response):
+    response.delete_cookie('access_token')
+    # response.delete_cookie('refresh_token')
+    log_event("Пользователь разлогинился | user_id: %s; s_id: %s", request.state.user_id, request.state.session_id, request=request)
+    return {'success': True, 'message': 'Пользователь вне аккаунта'}
 
 @router.post('/profile/seances', summary='Все Устройства аккаунта')
 async def show_seances(request: Request, db: PgSqlDep):
