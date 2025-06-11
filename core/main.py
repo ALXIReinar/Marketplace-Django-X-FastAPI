@@ -6,7 +6,7 @@ from starlette.staticfiles import StaticFiles
 from core.api.middlewares import LoggingTimeMiddleware, TrafficCounterMiddleware, AuthUxMiddleware
 from core.api import main_router
 
-from core.config_dir.config import get_env_vars, app, pool_settings
+from core.config_dir.config import get_env_vars, app, pool_settings, broadcast
 
 app.include_router(main_router)
 
@@ -24,10 +24,12 @@ app.add_middleware(LoggingTimeMiddleware)
 @app.on_event('startup')
 async def startup():
     app.state.pg_pool = await create_pool(**pool_settings)
+    await broadcast.connect()
 
 @app.on_event('shutdown')
 async def shutdown():
     await app.state.pg_pool.close()
+    await broadcast.disconnect()
 
 app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates', html=True), name='frontend')
 app.mount('/', StaticFiles(directory=f'{get_env_vars().abs_path}/core/templates/images'), name='pic_s')

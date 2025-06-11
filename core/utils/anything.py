@@ -45,6 +45,11 @@ class Events:
     TEST = "Логи работают!"
     plug = ''
 
+@dataclass
+class WSControl:
+    open: str = 'view_chat'
+    close: str = 'close_chat'
+    ws_chat_channel: str = 'chat'
 
 
 mail_ptn_forget_password_HTML='''

@@ -63,7 +63,7 @@ services:
       - net_con
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./dumps/{CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
+      - ./dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
 
   smtp_service:
     image: rnwood/smtp4dev

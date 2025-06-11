@@ -5,11 +5,11 @@ from functools import lru_cache
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from asyncpg import create_pool
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from aiobotocore.session import get_session
 from aiosmtplib import SMTP
+from broadcaster import Broadcast
 from passlib.context import CryptContext
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel
@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     elastic_host_docker: str
     elastic_port: str
     elastic_cert: str
+    elastic_cert_docker: str
     search_index: str
 
     s3_access_key: str
@@ -101,7 +102,7 @@ env = get_env_vars()
 es_host = env.elastic_host
 es_settings = dict(
     basic_auth=(env.elastic_user, env.elastic_password),
-    ca_certs=env.elastic_cert,
+    ca_certs=env.elastic_cert if not env.dockerized else env.elastic_cert_docker,
     verify_certs=False
 )
 if env.dockerized:
@@ -169,3 +170,8 @@ smtp = SMTP(
     start_tls=env.smtp_tls_on,
     tls_context=smtp_context
 )
+
+
+"Broadcast WebSocket"
+broadcast = Broadcast(f"redis://{env.redis_host}:{env.redis_port}" if not env.dockerized
+                      else f"redis://{env.redis_host_docker}:{env.redis_port_docker}")
