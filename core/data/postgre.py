@@ -23,6 +23,7 @@ class PgSql:
 
         self.products = ProductsQueries(conn)
         self.extended_product = ExtendedProduct(conn)
+        self.chats = ChatQueries(conn)
 
 
 connection: Optional[Pool] = None

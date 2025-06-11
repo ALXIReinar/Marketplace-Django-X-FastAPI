@@ -7,11 +7,21 @@ from core.data.postgre import PgSqlDep
 from core.schemas.product_schemas import SearchSchema
 from core.utils.anything import Tags
 from core.utils.searching.elastic_utils import gener_docs
+from core.utils.searching.index_settings import index_mapping, aliases, settings
 from core.utils.searching.search_ptn import looking
 
 router = APIRouter(prefix='/api/products/elastic', tags=[Tags.elastic_products])
 search_index =  get_env_vars().search_index
 
+
+@router.put('/index_up/{index_name}', summary='Название индекса может быть произвольным, но не должно совпадать с Элиасом')
+async def put_index(index_name: str):
+    async with es_client as aioes:
+        await aioes.indices.create(index=index_name,
+                                   aliases=aliases,
+                                   settings=settings,
+                                   mappings=index_mapping)
+    return {'success': True, 'message': f'Индекс {index_name} поднят, прожми бульк-вставку!'}
 
 
 @router.post('/bulk_docs')
