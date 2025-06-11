@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from core.schemas.product_schemas import PaginationSchema
+
 
 class WSContractSchema(BaseModel):
     event: Literal['view_chat', 'close_chat', 'msg_contract']
@@ -20,3 +22,6 @@ class WSMessageSchema(WSContractSchema):
     type: Literal[1, 2, 3]
     text_field: str | None
     reply_id: int | None
+
+class PaginationChatMessSchema(PaginationSchema):
+    limit: int = 40

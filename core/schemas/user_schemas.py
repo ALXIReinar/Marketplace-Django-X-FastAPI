@@ -56,10 +56,3 @@ class TokenPayloadSchema(BaseModel):
     id: int
     user_agent: str = Field(max_length=512)
     ip: str = Field(max_length=39)
-
-
-class WSContractSchema(BaseModel):
-    event: Literal['view_chat', 'close_chat']
-
-class WSOpenCloseSchema(WSContractSchema):
-    chat_id: int

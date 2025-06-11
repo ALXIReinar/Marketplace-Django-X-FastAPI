@@ -1,10 +1,8 @@
-from collections import namedtuple
-
 from asyncpg import Connection
 from pydantic import EmailStr
 
 from core.config_dir.config import encryption
-
+from asyncpg.exceptions import UniqueViolationError
 
 class UsersQueries:
     def __init__(self, conn: Connection):
@@ -49,7 +47,7 @@ class AuthQueries:
 
 
     async def get_actual_rt(self, user_id: int, session_id: str):
-        query = '''SELECT refresh_token, seance FROM sessions_users
+        query = '''SELECT refresh_token FROM sessions_users
                    WHERE user_id = $1 AND session_id = $2 AND "exp" > now()'''
         res = await self.conn.fetchrow(query, user_id, session_id)
         return res
@@ -66,8 +64,6 @@ class ChatQueries:
 
     async def get_user_chats(self, user_id: int, limit: int, offset: int):
         query = '''
-<<<<<<< HEAD
-        
         WITH last_msg AS ( 
         SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
         FROM chat_messages
@@ -75,26 +71,17 @@ class ChatQueries:
             SELECT chat_id FROM chat_users WHERE user_id = $1
         )
         ORDER BY chat_id, writed_at DESC
-=======
-        WITH last_msg AS (
-            SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
-            FROM chat_messages
-            WHERE chat_id IN (
-                SELECT chat_id FROM chat_users WHERE user_id = $1
-            )
-            ORDER BY chat_id, writed_at DESC
->>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)
         )
         SELECT c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode,
+          CASE WHEN l.owner_id = $1 THEN TRUE ELSE FALSE END AS is_me, 
           COUNT(m.id) FILTER (WHERE m.local_id > COALESCE(r.last_read_local_id, 0)) AS unread_count
         FROM chat_users c_u
         JOIN last_msg l ON c_u.chat_id = l.chat_id
         LEFT JOIN readed_mes r ON r.chat_id = c_u.chat_id AND r.user_id = c_u.user_id
         LEFT JOIN chat_messages m ON m.chat_id = c_u.chat_id
         WHERE c_u.user_id = $1 AND c_u.state BETWEEN 1 AND 2
-        GROUP BY c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode, r.last_read_local_id
+        GROUP BY c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode, is_me
         ORDER BY l.writed_at DESC
-<<<<<<< HEAD
         LIMIT $2 OFFSET $3
         '''
         chat_records = await self.conn.fetch(query, user_id, limit, offset)
@@ -108,16 +95,32 @@ class ChatQueries:
             text_field: str | None = None,
             reply_id: int | None = None
     ):
-        query = '''
-        INSERT INTO chat_messages (chat_id , owner_id, text_field, type, reply_id, local_id)
-        VALUES($1, $2, $3, $4, $5,(SELECT COALESCE(MAX(local_id), 0) + 1 FROM chat_messages WHERE chat_id = $1))
-        RETURNING local_id
+        query_last_local_id  = '''
+        BEGIN ISOLATION LEVEL READ COMMITTED;
+        SELECT (COALESCE(MAX(local_id), 0) + 1) AS next_local_id FROM chat_messages WHERE chat_id = $1'''
+        query_commit_transaction = '''
+        INSERT INTO chat_messages (chat_id , owner_id, text_field, type, reply_id, local_id) VALUES($1,$2,$3,$4,$5,$6);
+        COMMIT;
         '''
-        local_id = await self.conn.execute(query, chat_id, user_id, text_field, msg_type, reply_id)
+        try:
+            "Начало транзакции"
+            db_response = (await self.conn.fetchrow(query_last_local_id, chat_id))['next_local_id']
+            local_id = await self.conn.execute(
+                query_commit_transaction,
+                chat_id, user_id, text_field, msg_type, reply_id, db_response['next_local_id']
+            )
+        except UniqueViolationError:
+            "Завершаем транзакцию Либо ловим Конкурентный Доступ"
+            await self.conn.execute('ROLLBACK')
+            local_id = await self.save_message(chat_id, user_id, msg_type, text_field, reply_id)
+
         return local_id
-=======
-        LIMIT $2 OFFSET $3;
+
+    async def get_chat_messages(self, chat_id: int, limit: int, offset: int):
+        query = '''
+        SELECT owner_id, text_field, content_path, type, writed_at, reply_id, local_id FROM chat_messages
+        WHERE chat_id = $1
+        LIMIT $2 OFFSET $3
         '''
-        chat_records = await self.conn.fetch(query, user_id, limit, offset)
-        return chat_records
->>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)
+        res = await self.conn.fetch(query, chat_id, limit, offset)
+        return res

@@ -22,7 +22,7 @@ async def reissue_aT(access_token: dict, refresh_token: str, db: PgSqlDep):
     sub, s_id = access_token['sub'], access_token['s_id']
     db_rT = await db.auth.get_actual_rt(int(sub), access_token['s_id'])
 
-    if db_rT and (db_rT['seance'] and secrets.compare_digest(db_rT['refresh_token'], refresh_token)):
+    if db_rT and secrets.compare_digest(db_rT['refresh_token'], refresh_token):
         # рефреш_токен СОВПАЛ с выданным и ещё НЕ ИСТЁК
         log_event(Events.new_aT + f" | s_id: {s_id}; user_id: {sub}")
         new_access_token = issue_token(db, {'sub': sub, 's_id': s_id})
