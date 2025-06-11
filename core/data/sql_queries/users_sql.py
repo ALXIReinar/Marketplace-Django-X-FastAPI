@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from asyncpg import Connection
 from pydantic import EmailStr
 
@@ -64,20 +66,24 @@ class ChatQueries:
 
     async def get_user_chats(self, user_id: int, limit: int, offset: int):
         query = '''
-        
-WITH last_msg AS (
-    SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
-    FROM chat_messages
-    WHERE chat_id IN (
-        SELECT chat_id FROM chats_users WHERE user_id = 27
-    )
-    ORDER BY chat_id, writed_at DESC
-)
-SELECT c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode FROM chats_users c_u
-JOIN last_msg l ON c_u.chat_id = l.chat_id
-WHERE c_u.user_id = 27 AND c_u.state BETWEEN 1 AND 2
-ORDER BY l.writed_at DESC
-LIMIT 30 OFFSET 0
-
+        WITH last_msg AS (
+            SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
+            FROM chat_messages
+            WHERE chat_id IN (
+                SELECT chat_id FROM chat_users WHERE user_id = $1
+            )
+            ORDER BY chat_id, writed_at DESC
+        )
+        SELECT c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode,
+          COUNT(m.id) FILTER (WHERE m.local_id > COALESCE(r.last_read_local_id, 0)) AS unread_count
+        FROM chat_users c_u
+        JOIN last_msg l ON c_u.chat_id = l.chat_id
+        LEFT JOIN readed_mes r ON r.chat_id = c_u.chat_id AND r.user_id = c_u.user_id
+        LEFT JOIN chat_messages m ON m.chat_id = c_u.chat_id
+        WHERE c_u.user_id = $1 AND c_u.state BETWEEN 1 AND 2
+        GROUP BY c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode, r.last_read_local_id
+        ORDER BY l.writed_at DESC
+        LIMIT $2 OFFSET $3;
         '''
         chat_records = await self.conn.fetch(query, user_id, limit, offset)
+        return chat_records

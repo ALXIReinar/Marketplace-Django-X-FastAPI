@@ -59,7 +59,7 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
           (any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)) and not request.cookies)
         ):
 
-            log_event(Events.white_list_url + " | length cookies: %s", len(request.cookies), request=request, level='WARNING')
+            log_event(Events.white_list_url + " | cookies: %s", request.cookies.keys(), request=request, level='WARNING')
             return await call_next(request)
 
 
