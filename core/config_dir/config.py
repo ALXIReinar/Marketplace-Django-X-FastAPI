@@ -28,6 +28,7 @@ class AuthConfig(BaseModel):
     algorithm: str = 'RS256'
     ttl_aT: timedelta = timedelta(minutes=15)
     ttl_rT: timedelta = timedelta(days=30)
+    ttl_wT: timedelta = timedelta(seconds=15)
 
 
 class Settings(BaseSettings):

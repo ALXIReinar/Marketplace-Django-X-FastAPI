@@ -33,7 +33,9 @@ class Events:
 
     new_aT = "Выпущен аксес_токен"
     fake_aT_try = "Попытка подмены аксес_токена"
+    fake_wT_try = "Попытка подмены ws_токена | WebSocket Auth | "
     fake_rT = 'Попытка подмены рефреш_токена'
+    fake_wT = 'Попытка подмены ws_токена'
     fake_rT_or_exp = 'Возможна подмена рефреш_токена/истёк просто'
 
     bg_product_stage_ = "Карточка товара, степень фона: {} | "
@@ -53,6 +55,18 @@ class WSControl:
     send_msg: str = 'send_msg'
     last_messages: str = 'last_messages_layout'
 
+
+@dataclass
+class TokenTypes:
+    access_token: str = 'aT'
+    refresh_token: str = 'rT'
+    ws_token: str = 'wT'
+
+token_types = {
+    'access_token': 'aT',
+    'refresh_token': 'rT',
+    'ws_token': 'wT'
+}
 
 mail_ptn_forget_password_HTML='''
 <!DOCTYPE html>
@@ -112,3 +126,4 @@ WHERE p.id IN ({})
 AND p.remain > 0
 GROUP BY p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days
 '''
+
