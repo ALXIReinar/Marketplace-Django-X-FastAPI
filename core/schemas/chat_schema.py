@@ -25,3 +25,4 @@ class WSMessageSchema(WSContractSchema):
 
 class PaginationChatMessSchema(PaginationSchema):
     limit: int = 40
+    ws_token: str
