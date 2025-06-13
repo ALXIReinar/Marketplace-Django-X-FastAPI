@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from fastapi import APIRouter, HTTPException
 from pydantic import ValidationError
@@ -32,6 +33,7 @@ async def get_chats(pagen: PagenChatDep, request: Request, db: PgSqlDep):
      - type: 1 - text
              2 - media
              3 - audio
+             4 - doc
     """
     chats = await db.chats.get_user_chats(request.state.user_id, pagen.limit, pagen.offset)
     return {'chat_records': chats}
@@ -54,7 +56,6 @@ async def ws_control(ws: WebSocket):
     try:
         "Получаем арги из URL"
         pagen = PaginationChatMessSchema(**dict(ws.query_params))
-        log_event("ws_token: %s", pagen.ws_token, level='DEBUG')
         if (creds:= await get_creds_open_online_connection(ws, pagen.ws_token)) is None:
             return
         user_id, s_id = creds
@@ -67,16 +68,15 @@ async def ws_control(ws: WebSocket):
     except Exception as e:
         log_event("Неучтённая Ошибка!!! | Exception: %s", e, request=ws, level='CRITICAL')
         raise WebSocketDisconnect(code=4000, reason='Exception')
-
-    log_event('ws_token: %s - accepted!', pagen.ws_token, request=ws, level='DEBUG')
+    # {"event": "send_message", "chat_id": 3}
     if contract_obj.event == WSControl.open:
         chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
 
         "Получаем последние сообщения"
         async with init_pool() as db:
             last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset)
-        log_event("Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=ws)
-        await ws.send_json({'event': WSControl.last_messages, "messages":convert(last_chat_messages)})
+        log_event("Открыт ВебСокет; Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=ws)
+        await ws.send_json({'event': WSControl.last_messages, "messages": convert(last_chat_messages)})
 
         "Открываем вещание"
         task = asyncio.create_task(
@@ -98,14 +98,14 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
     if contract_obj.event != WSControl.send_msg:
         raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал для JSON'})
 
-    saved_msg_id = await db.chats.save_message(
+    saved_msg_json = await db.chats.save_message(
         chat_id=contract_obj.chat_id,
         user_id=request.state.user_id,
         msg_type=contract_obj.type,
         text_field=contract_obj.text_field,
         reply_id=contract_obj.reply_id
     )
-    log_event("Сохранено сообщение #%s; chat_id: %s", saved_msg_id, contract_obj.chat_id, request=request)
-    await broadcast.publish(f'{WSControl.ws_chat_channel}:{contract_obj.chat_id}', message={'success': True, 'msg_id': saved_msg_id})
+    log_event("Сохранено сообщение #%s; chat_id: %s", saved_msg_json['msg_id'], contract_obj.chat_id, request=request)
+    await broadcast.publish(f'{WSControl.ws_chat_channel}:{contract_obj.chat_id}', message=json.dumps(saved_msg_json))
 
 

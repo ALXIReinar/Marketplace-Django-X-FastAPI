@@ -15,14 +15,16 @@ def set_jwt_encode(payload: dict[str, Any]):
     )
     return encoded
 
-def get_jwt_decode_payload(encoded_jwt: str):
+def get_jwt_decode_payload(encoded_jwt: str, verify_exp: bool=False):
     try:
         decoded = jwt.decode(
             jwt=encoded_jwt,
             key=get_env_vars().JWTs.public_key.read_text(),
             algorithms=[get_env_vars().JWTs.algorithm],
-            options={'verify_exp': False}
+            options={'verify_exp': verify_exp}
         )
     except DecodeError:
+        decoded = 401
+    except ExpiredSignatureError:
         decoded = 401
     return decoded
