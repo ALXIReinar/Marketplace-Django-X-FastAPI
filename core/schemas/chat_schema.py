@@ -6,7 +6,7 @@ from core.schemas.product_schemas import PaginationSchema
 
 
 class WSContractSchema(BaseModel):
-    event: Literal['view_chat', 'close_chat', 'msg_contract']
+    event: Literal['view_chat', 'close_chat', 'last_messages_layout', 'send_msg']
 
 class WSOpenCloseSchema(WSContractSchema):
     chat_id: int

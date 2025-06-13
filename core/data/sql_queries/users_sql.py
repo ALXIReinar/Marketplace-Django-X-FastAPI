@@ -4,6 +4,9 @@ from pydantic import EmailStr
 from core.config_dir.config import encryption
 from asyncpg.exceptions import UniqueViolationError
 
+from core.config_dir.logger import log_event
+
+
 class UsersQueries:
     def __init__(self, conn: Connection):
         self.conn = conn
@@ -93,28 +96,34 @@ class ChatQueries:
             user_id: int,
             msg_type: str,
             text_field: str | None = None,
-            reply_id: int | None = None
+            reply_id: int | None = None,
+            attempt_again: int = 0
     ):
-        query_last_local_id  = '''
-        BEGIN ISOLATION LEVEL READ COMMITTED;
-        SELECT (COALESCE(MAX(local_id), 0) + 1) AS next_local_id FROM chat_messages WHERE chat_id = $1'''
+        if attempt_again >= 2:
+            return {'success': False, 'msg_id': -1}
+        query_last_local_id  = '''SELECT (COALESCE(MAX(local_id), 0) + 1) AS next_local_id FROM chat_messages WHERE chat_id = $1'''
         query_commit_transaction = '''
         INSERT INTO chat_messages (chat_id , owner_id, text_field, type, reply_id, local_id) VALUES($1,$2,$3,$4,$5,$6);
-        COMMIT;
         '''
         try:
             "Начало транзакции"
-            db_response = (await self.conn.fetchrow(query_last_local_id, chat_id))['next_local_id']
-            local_id = await self.conn.execute(
+            await self.conn.execute('BEGIN ISOLATION LEVEL READ COMMITTED')
+
+            local_id = (await self.conn.fetchrow(query_last_local_id, chat_id))['next_local_id']
+            await self.conn.execute(
                 query_commit_transaction,
-                chat_id, user_id, text_field, msg_type, reply_id, db_response['next_local_id']
+                chat_id, user_id, text_field, msg_type, reply_id, local_id
             )
+
+            "Коммит Транзакции"
+            await self.conn.execute('COMMIT')
         except UniqueViolationError:
             "Завершаем транзакцию Либо ловим Конкурентный Доступ"
             await self.conn.execute('ROLLBACK')
-            local_id = await self.save_message(chat_id, user_id, msg_type, text_field, reply_id)
+            log_event("Идём на %s круг, msg_package: %s", attempt_again, (chat_id, user_id, text_field, msg_type, reply_id), level='WARNING')
+            local_id = await self.save_message(chat_id, user_id, msg_type, text_field, reply_id, attempt_again=attempt_again + 1)
 
-        return local_id
+        return {'success': True, 'msg_id': local_id, 'user_id': user_id}
 
     async def get_chat_messages(self, chat_id: int, limit: int, offset: int):
         query = '''
