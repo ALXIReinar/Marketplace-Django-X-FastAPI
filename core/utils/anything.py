@@ -20,6 +20,7 @@ class Tags:
     elastic_products = 'Товары *Elastic🔎*'
     celery_bg = 'Celery Фон🥬🐇'
     chat = 'Мессенджер💬'
+    file_reader = 'Файловое Хранилище🗂'
 
 @dataclass
 class Events:
@@ -54,6 +55,8 @@ class WSControl:
     ws_chat_channel: str = 'chat'
     send_msg: str = 'send_msg'
     last_messages: str = 'last_messages_layout'
+    get_file: str = 'get_file'
+    save_file: str = 'save_file'
 
 
 @dataclass
@@ -104,6 +107,9 @@ mail_ptn_forget_password_TEXT = '''
 
 def hide_log_param(param, start=3, end=8):
     return param[:start] + '*' * len(param[start:-end-1]) + param[-end:]
+
+def cut_log_param(param, compression_times=20):
+    return param[len(param)//compression_times:] + '...'
 
 def create_log_dirs():
     LOG_DIR = Path('logs')

@@ -1,17 +1,19 @@
 import asyncio
 import json
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+import magic
+from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from core.config_dir.base_dependencies import PagenChatDep
-from core.config_dir.config import broadcast
+from core.config_dir.config import broadcast, env
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep, init_pool
-from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema
-from core.utils.anything import Tags, WSControl
+from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles
+from core.utils.anything import Tags, WSControl, cut_log_param
 from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
 from core.utils.websocket_tools.broadcast_channel import pub_sub
 from core.utils.celery_serializer import convert
@@ -46,7 +48,7 @@ async def throw_wT(request: Request):
         's_id': request.state.session_id
     }
     ws_token = await issue_token(payload, 'ws_token')
-    log_event("Выдан ws_token: %s", ws_token, request=request)
+    log_event("Выдан ws_token: %s", cut_log_param(ws_token), request=request)
     return {'ws_token': ws_token}
 
 
@@ -68,7 +70,7 @@ async def ws_control(ws: WebSocket):
     except Exception as e:
         log_event("Неучтённая Ошибка!!! | Exception: %s", e, request=ws, level='CRITICAL')
         raise WebSocketDisconnect(code=4000, reason='Exception')
-    # {"event": "send_message", "chat_id": 3}
+
     if contract_obj.event == WSControl.open:
         chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
 
@@ -91,6 +93,7 @@ async def ws_control(ws: WebSocket):
             task.cancel()
             log_event("Вебсокет закрылся! | Exception: %s | user_id: %s; chat_id: %s",
                       e, user_id, contract_obj.chat_id, request=ws, level='WARNING')
+    raise WebSocketDisconnect(code=4001, reason='Неверные данные!')
 
 
 @router.post('/send_message')
@@ -109,3 +112,26 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{contract_obj.chat_id}', message=json.dumps(saved_msg_json))
 
 
+
+@router.post('/send_file/local')
+async def absorb_binary(file_hint: ChatSaveFiles, file_obj: UploadFile, request: Request, db: PgSqlDep):
+    if file_hint.event != WSControl.save_file:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал для JSON'})
+
+    log_event('Загрузка файла: %s; user_id: %s; chat_id: ', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    uniq_id = uuid4()
+    ext = magic.Magic(mime=True).from_file(file_hint.file_name)
+    db_file_name =f'{env.local_storage}/{uniq_id}.{ext}'
+    with open(db_file_name, 'wb') as f:
+        f.write(file_obj.file.read())
+
+    saved_msg_json = await db.chats.save_message(
+        chat_id=file_hint.chat_id,
+        user_id=request.state.user_id,
+        msg_type=file_hint.type,
+        text_field=file_hint.text_field,
+        content_path=db_file_name,
+        reply_id=file_hint.reply_id
+    )
+    log_event('Файл Сохранён!: %s; user_id: %s; chat_id: ', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
