@@ -1,4 +1,3 @@
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Annotated, AsyncGenerator
 from asyncpg import Connection, create_pool, Pool
@@ -10,7 +9,8 @@ from typing_extensions import Optional
 from core.config_dir.config import pool_settings
 from core.data.sql_queries.multi_render_prd_sql import ExtendedProduct
 from core.data.sql_queries.products_sql import ProductsQueries
-from core.data.sql_queries.users_sql import UsersQueries, AuthQueries, ChatQueries
+from core.data.sql_queries.users_sql import UsersQueries, AuthQueries
+from core.data.sql_queries.chats_sql import ChatQueries
 
 
 class PgSql:

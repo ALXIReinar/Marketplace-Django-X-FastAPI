@@ -33,6 +33,7 @@ class AuthConfig(BaseModel):
 
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
+    local_storage: str = '/core/templates/images'
 
     pg_db: str
     pg_user: str
