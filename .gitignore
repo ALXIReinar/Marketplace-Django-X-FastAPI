@@ -169,6 +169,7 @@ cython_debug/
 *.sql
 *.zip
 *.xlsx
+*.tar.gz
 images/
 keys/
 .vscode/
