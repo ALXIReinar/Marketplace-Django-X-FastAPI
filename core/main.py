@@ -36,4 +36,4 @@ app.mount('/', StaticFiles(directory=f'{env.abs_path}/core/templates/images'), n
 
 
 if __name__ == '__main__':
-    uvicorn.run('core.main:app', host=env.uvicorn_host, port=8000, log_config=None)
+    uvicorn.run('core.main:app', host=env.uvicorn_host_docker if env.dockerized else env.uvicorn_host, port=8000, log_config=None)

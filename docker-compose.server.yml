@@ -1,0 +1,150 @@
+services:
+  redis:
+    image: redis:7.2.9
+    container_name: redis_pied_market
+    command: redis-server
+    ports:
+      - '6378:6379'
+    networks:
+      net_con:
+
+  rabbitmq:
+    container_name: rabbitmq_pied_market
+    image: rabbitmq:3.12-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSW}
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      net_con:
+
+  celery_worker:
+    container_name: celery_worker_pied_market
+    build: .
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
+    environment:
+      - DOCKERIZED=1
+      - CELERY_WORKER=1
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    develop:
+      watch:
+        - target: /app
+          path: ./core
+          action: sync+restart
+    depends_on:
+      - rabbitmq
+      - redis
+    volumes:
+      - images:/app/core/templates/images
+    networks:
+      net_con:
+
+  pg_db:
+    container_name: pg_db_pied_market
+    image: postgres:16
+    env_file:
+      - ./.env
+    environment:
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PASSWORD}
+      - POSTGRES_DB=${PG_DB}
+    restart: on-failure
+    ports:
+      - '5431:5432'
+    networks:
+      - net_con
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
+
+  smtp_service:
+    image: rnwood/smtp4dev
+    container_name: smtp4dev_pied_market
+    environment:
+      - ServerOptions__TlsCertificateFile=${SMTP_CERT_DOCKER}
+      - ServerOptions__TlsKeyFile=${SMTP_KEY_DOCKER}
+      - ServerOptions__TlsMode=StartTls
+    ports:
+      - "2525:25"
+      - "3000:80"
+    networks:
+      net_con:
+
+  es01:
+    depends_on:
+      - pg_db
+    container_name: es_pied_market
+    image: elasticsearch:${ELASTIC_VERSION}
+    environment:
+      - node.name=es01
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    mem_limit: 3g
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+    ports:
+      - '9200:9200'
+    networks:
+      net_con:
+
+  kibana:
+    depends_on:
+      - es01
+    container_name: kibana_pied_market
+    image: kibana:${ELASTIC_VERSION}
+    environment:
+      - ELASTICSEARCH_HOSTS=http://es01:${ELASTIC_PORT}
+    ports:
+      - '5602:5601'
+    networks:
+      net_con:
+
+  pied_market:
+    container_name: pied_marketplace
+    build: .
+    command: python core/main.py
+    depends_on:
+      - pg_db
+      - redis
+      - es01
+      - celery_worker
+      - smtp_service
+    env_file:
+      - .env
+    environment:
+      - DOCKERIZED=1
+    restart: on-failure
+    ports:
+      - '8000:8000'
+    networks:
+      net_con:
+    volumes:
+      - images:/app/core/templates/images
+
+
+networks:
+  net_con:
+    driver: bridge
+
+volumes:
+  pg_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  esdata01:
+    driver: local
+  images:
+    driver: local
