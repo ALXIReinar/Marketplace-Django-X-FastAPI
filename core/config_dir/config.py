@@ -85,6 +85,7 @@ class Settings(BaseSettings):
     JWTs: AuthConfig = AuthConfig()
     internal_host: str
     uvicorn_host: str
+    uvicorn_host_docker: str
 
     mail_sender: str
     dockerized: bool = os.getenv('DOCKERIZED', False)
