@@ -135,9 +135,11 @@ elif env.docker_db and env.celery_worker:
 elif not env.cloud_db and env.celery_worker:
     "Локальная БД и Воркер"
     db_host = env.internal_host
-elif env.docker_db:
+elif env.docker_db and not env.dockerized:
     "БД в докере, Локалка подрубается"
     db_port = env.pg_port_docker
+if env.dockerized:
+    db_host = env.pg_host_docker
 
 pool_settings = dict(
     user=env.pg_user,
