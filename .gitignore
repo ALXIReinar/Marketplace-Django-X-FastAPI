@@ -183,3 +183,4 @@ esdata01/
 es_certs/
 create_new_cert_p12_elastic/
 create_new_cert_p12_elastic/es_crt_util_certs/
+quick_docker_up/
