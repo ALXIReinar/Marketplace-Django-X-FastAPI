@@ -27,7 +27,7 @@ services:
 
   celery_worker:
     container_name: celery_worker_pied_market
-    build: .
+    image: alxireinar/marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
     environment:
       - DOCKERIZED=1
@@ -114,7 +114,7 @@ services:
 
   pied_market:
     container_name: pied_marketplace
-    build: .
+    image: alxireinar/marketplace_pied_market
     command: python core/main.py
     depends_on:
       - pg_db

@@ -2,7 +2,6 @@ import asyncio
 import json
 from uuid import uuid4
 
-import magic
 from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import ValidationError
 from starlette.requests import Request
@@ -120,7 +119,7 @@ async def absorb_binary(file_hint: ChatSaveFiles, file_obj: UploadFile, request:
 
     log_event('Загрузка файла: %s; user_id: %s; chat_id: ', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = uuid4()
-    ext = magic.Magic(mime=True).from_file(file_hint.file_name)
+    ext = 'mp4' # magic.Magic(mime=True).from_file(file_hint.file_name)
     db_file_name =f'{env.local_storage}/{uniq_id}.{ext}'
     with open(db_file_name, 'wb') as f:
         f.write(file_obj.file.read())
