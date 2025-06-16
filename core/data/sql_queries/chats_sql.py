@@ -1,5 +1,6 @@
 from asyncpg import Connection, UniqueViolationError
 
+from core.config_dir.config import env
 from core.config_dir.logger import log_event
 
 
@@ -68,13 +69,27 @@ class ChatQueries:
 
         return {'success': True, 'msg_id': local_id, 'user_id': user_id}
 
-    async def get_chat_messages(self, chat_id: int, limit: int, offset: int):
+    async def get_chat_messages(self, chat_id: int, limit: int, offset: int, user_id: int | None = None):
+        sub_query_for_tp_on_edge_mes = f'''
+        AND c_m.local_id > (SELECT COALESCE(last_read_local_id, 0) FROM readed_mes WHERE chat_id = $1 AND user_id = $4) - {env.delta_layout_msg}'''
         query = '''
         SELECT c_m.owner_id, c_u.chat_img, c_m.text_field, c_m.content_path, c_m.type, c_m.writed_at, c_m.reply_id, c_m.local_id FROM chat_messages c_m
         JOIN chat_users c_u ON c_u.chat_id = c_m.chat_id AND c_u.user_id = c_m.owner_id
-        WHERE c_m.chat_id = $1
-        ORDER BY c_m.writed_at DESC
+        WHERE c_m.chat_id = $1 {}
+        ORDER BY c_m.local_id DESC
         LIMIT $2 OFFSET $3
         '''
-        res = await self.conn.fetch(query, chat_id, limit, offset)
+        if user_id is None:
+            res = await self.conn.fetch(query.format(''), chat_id, limit, offset)
+            log_event(query.format(''), level='DEBUG')
+        else:
+            res = await self.conn.fetch(query.format(sub_query_for_tp_on_edge_mes), chat_id, limit, offset, user_id)
         return res
+
+
+    async def update_readed_messages(self, user_id: int, chat_id: int, local_mes_id: int):
+        query = '''
+        INSERT INTO readed_mes (user_id, chat_id, last_read_local_id) VALUES($1,$2,$3)
+        ON CONFLICT (user_id, chat_id) DO UPDATE SET last_read_local_id = $3
+        '''
+        await self.conn.execute(query, user_id, chat_id, local_mes_id)

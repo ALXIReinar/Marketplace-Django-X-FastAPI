@@ -15,7 +15,7 @@ from core.config_dir.config import broadcast, env
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep, init_pool
 from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
-    WSFileSchema
+    WSFileSchema, WSReadUpdateSchema
 from core.utils.anything import Tags, WSControl, cut_log_param
 from core.utils.file_cutter import content_cutter, cutter_types
 from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
@@ -54,7 +54,7 @@ async def throw_wT(request: Request):
     }
     ws_token = await issue_token(payload, 'ws_token')
     log_event("Выдан ws_token: %s", cut_log_param(ws_token), request=request)
-    return {'ws_token': ws_token}
+    return {'ws_token': ws_token, 'user_id': request.state.user_id}
 
 
 @router.websocket('/ws')
@@ -81,7 +81,7 @@ async def ws_control(ws: WebSocket):
 
         "Получаем последние сообщения"
         async with init_pool() as db:
-            last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset)
+            last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset, contract_obj.user_id)
         log_event("Открыт ВебСокет; Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=ws)
         await ws.send_json({'event': WSControl.last_messages, "messages": convert(last_chat_messages)})
 
@@ -115,7 +115,7 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
     )
     log_event("Сохранено сообщение #%s; chat_id: %s", saved_msg_json['msg_id'], contract_obj.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{contract_obj.chat_id}', message=json.dumps(saved_msg_json))
-
+    return {'success': True, 'message': 'Сохранено, лови msg_id!'}
 
 
 @router.post('/send_file/local')
@@ -147,6 +147,7 @@ async def absorb_binary(
     )
     log_event('Файл Сохранён!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
+    return {'success': True, 'message': 'Сохранено, лови uuid!'}
 
 
 @router.get('/get_file/local')
@@ -178,3 +179,15 @@ async def get_chunks_file(file_obj: WSFileSchema, request: Request):
 
     log_event('Стриминг файла: %s, msg_type: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
     return StreamingResponse(content_cutter(file_obj.file_path), media_type=cutter_types[file_obj.msg_type])
+
+
+
+@router.put('/set_readed')
+async def update_read_count(contract_obj: WSReadUpdateSchema, request: Request, db: PgSqlDep):
+    if contract_obj.event != WSControl.set_readed:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип передал'})
+
+    await db.chats.update_readed_messages(contract_obj.user_id, contract_obj.chat_id, contract_obj.msg_id)
+    log_event("Новые прочитанные сообщения | user_id: %s; chat_id: %s; msg_local_id: %s",
+              contract_obj.user_id, contract_obj.chat_id, contract_obj.msg_id, request=request)
+    return {'success': True, 'message': 'Счётчик обновлён'}

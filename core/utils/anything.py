@@ -57,6 +57,7 @@ class WSControl:
     last_messages: str = 'last_messages_layout'
     get_file: str = 'get_file'
     save_file: str = 'save_file'
+    set_readed: str = 'set_readed'
 
 
 @dataclass

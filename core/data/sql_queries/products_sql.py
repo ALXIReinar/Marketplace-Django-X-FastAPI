@@ -2,7 +2,6 @@ from collections import namedtuple
 
 from asyncpg import Connection
 
-from core.config_dir.logger import log_event
 from core.utils.anything import copy_query_PRODUCTS_BY_ID
 
 
@@ -28,17 +27,24 @@ class ProductsQueries:
             (SELECT COUNT(*) FROM favorite WHERE user_id = $1) AS f_count,
 	        (SELECT COUNT(o_p.prd_id) FROM orders o 
             JOIN ordered_products o_p ON o_p.order_id = o.id AND o.status = 'Актуальные'
-            WHERE user_id = $1) AS ord_items"""
+            WHERE user_id = $1) AS ord_items,
+            (SELECT SUM(c) AS unread_count FROM (
+            SELECT COUNT(*) AS c FROM chat_messages c_m
+            JOIN chat_users c_u ON c_u.chat_id = c_m.chat_id
+            LEFT JOIN readed_mes l_r ON l_r.user_id = c_u.user_id AND l_r.chat_id = c_m.chat_id 
+            WHERE c_u.user_id = $1 AND c_m.local_id > COALESCE(l_r.last_read_local_id, 0)
+            GROUP BY c_m.chat_id)) AS unread_count
+        """
 
         layout_products = await self.conn.fetch(query_layout_products, user_id, offset, limit)
         if user_id == 1:
-            f_count, ord_count = 0, 0
+            f_count, ord_count, unread_count = 0, 0, 0
         else:
             counters = await self.conn.fetchrow(query_counters, user_id)
-            f_count, ord_count = counters['f_count'], counters['ord_items']
+            f_count, ord_count, unread_count = counters['f_count'], counters['ord_items'], counters['unread_count']
 
-        named_res = namedtuple('Records', ('products', 'favorite', 'ordered_items'))
-        return named_res(layout_products, f_count, ord_count)
+        named_res = namedtuple('Records', ('products', 'favorite', 'ordered_items', 'chats'))
+        return named_res(layout_products, f_count, ord_count, unread_count)
 
 
     async def get_search_docs_BULK(self):

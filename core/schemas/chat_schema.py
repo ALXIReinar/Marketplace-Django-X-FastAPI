@@ -6,12 +6,13 @@ from core.schemas.product_schemas import PaginationSchema
 
 
 class WSContractSchema(BaseModel):
-    event: Literal['view_chat', 'close_chat', 'last_messages_layout', 'send_msg', 'get_file', 'save_file']
+    event: Literal['view_chat', 'close_chat', 'last_messages_layout', 'send_msg', 'get_file', 'save_file', 'set_readed']
 
 class WSOpenCloseSchema(WSContractSchema):
     chat_id: int
+    user_id: None | int
 
-class WSMessageSchema(WSOpenCloseSchema):
+class WSMessageSchema(WSContractSchema):
     """
     chat_messages:
      - type: 1 - text
@@ -19,6 +20,7 @@ class WSMessageSchema(WSOpenCloseSchema):
              3 - audio
              4 - doc/other
     """
+    chat_id: int
     type: Literal[1, 2, 3, 4]
     text_field: str | None
     reply_id: int | None
@@ -34,3 +36,9 @@ class ChatSaveFiles(WSMessageSchema):
 class WSFileSchema(WSContractSchema):
     msg_type: Literal[1, 2, 3, 4]
     file_path: str
+
+
+class WSReadUpdateSchema(WSContractSchema):
+    chat_id: int
+    user_id: int
+    msg_id: int
