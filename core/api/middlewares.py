@@ -59,7 +59,7 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
           (any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)) and not request.cookies)
         ):
 
-            log_event(Events.white_list_url + " | length cookies: %s", len(request.cookies), request=request, level='WARNING')
+            log_event(Events.white_list_url + " | cookies: %s", request.cookies.keys(), request=request, level='WARNING')
             return await call_next(request)
 
 
@@ -77,11 +77,11 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             async with init_pool() as db:
                 refresh_token = request.cookies.get('refresh_token')
                 new_token = await reissue_aT(access_token, refresh_token, db)
-                if new_token == 401:
-                    # рефреш_токен НЕ ВАЛИДЕН
-                    log_event(Events.fake_rT + f"| s_id: {access_token.get('s_id', '')}; user_id: {access_token.get('sub', '')}", request=request, level='CRITICAL')
-                    return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
-                request.cookies['access_token'] = new_token
+            if new_token == 401:
+                # рефреш_токен НЕ ВАЛИДЕН
+                log_event(Events.fake_rT + f"| s_id: {access_token.get('s_id', '')}; user_id: {access_token.get('sub', '')}", request=request, level='CRITICAL')
+                return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
+            request.cookies['access_token'] = new_token
 
         request.state.user_id = int(access_token['sub'])
         request.state.session_id = access_token['s_id']

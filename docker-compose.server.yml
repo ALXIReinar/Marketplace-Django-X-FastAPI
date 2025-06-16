@@ -27,9 +27,10 @@ services:
 
   celery_worker:
     container_name: celery_worker_pied_market
-    build: .
+    image: alxireinar/marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
     environment:
+      - DEPLOYED=1
       - DOCKERIZED=1
       - CELERY_WORKER=1
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
@@ -111,6 +112,29 @@ services:
       - '5602:5601'
     networks:
       net_con:
+
+  pied_market:
+    container_name: pied_marketplace
+    image: alxireinar/marketplace_pied_market
+    command: python core/main.py
+    depends_on:
+      - pg_db
+      - redis
+      - es01
+      - celery_worker
+      - smtp_service
+    env_file:
+      - .env
+    environment:
+      - DEPLOYED=1
+      - DOCKERIZED=1
+    restart: on-failure
+    ports:
+      - '8000:8000'
+    networks:
+      net_con:
+    volumes:
+      - images:/app/core/templates/images
 
 
 networks:

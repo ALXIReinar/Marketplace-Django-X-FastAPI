@@ -35,7 +35,7 @@ async def get_product_card(
     if not in_front_cache:
         log_event(Events.bg_product_stage_.format('0' + f' | NO cached | prd_id: {prd_id}'), request=request, level='WARNING')
         product_inst_part = await db.extended_product.instant_data_product_heavy(prd_id)
-    else:    log_event(Events.bg_product_stage_.format('0' + f' | cached! | prd_id: {prd_id}'), request)
+    else:    log_event(Events.bg_product_stage_.format('0' + f' | cached! | prd_id: {prd_id}'), request=request)
 
     log_event("Сразу 2 уровня фона! | " + f"user_id: {user_id}; prd_id: {prd_id}; seller_id: {seller_id}", request=request)
     task_1lvl_bg = lvl1_render.apply_async(args=[prd_id, in_front_cache, user_id])

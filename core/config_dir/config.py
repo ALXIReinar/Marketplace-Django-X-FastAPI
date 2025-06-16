@@ -5,11 +5,11 @@ from functools import lru_cache
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from asyncpg import create_pool
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from aiobotocore.session import get_session
 from aiosmtplib import SMTP
+from broadcaster import Broadcast
 from passlib.context import CryptContext
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel
@@ -28,10 +28,12 @@ class AuthConfig(BaseModel):
     algorithm: str = 'RS256'
     ttl_aT: timedelta = timedelta(minutes=15)
     ttl_rT: timedelta = timedelta(days=30)
+    ttl_wT: timedelta = timedelta(seconds=60)  # timedelta(seconds=15)
 
 
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
+    local_storage: str = '/core/templates/images'
 
     pg_db: str
     pg_user: str
@@ -59,6 +61,7 @@ class Settings(BaseSettings):
     elastic_host_docker: str
     elastic_port: str
     elastic_cert: str
+    elastic_cert_docker: str
     search_index: str
 
     s3_access_key: str
@@ -82,9 +85,11 @@ class Settings(BaseSettings):
     JWTs: AuthConfig = AuthConfig()
     internal_host: str
     uvicorn_host: str
+    uvicorn_host_docker: str
 
     mail_sender: str
     dockerized: bool = os.getenv('DOCKERIZED', False)
+    deployed: bool = os.getenv('DEPLOYED', False)
     docker_db: bool = os.getenv('DOCKER_DB', False)
     cloud_db: bool = os.getenv('CLOUD_DB', False)
     docker_es: bool = os.getenv('DOCKER_ES', False)
@@ -101,7 +106,7 @@ env = get_env_vars()
 es_host = env.elastic_host
 es_settings = dict(
     basic_auth=(env.elastic_user, env.elastic_password),
-    ca_certs=env.elastic_cert,
+    ca_certs=env.elastic_cert if not env.dockerized else env.elastic_cert_docker,
     verify_certs=False
 )
 if env.dockerized:
@@ -125,13 +130,16 @@ if env.cloud_db:
     db_host = env.pg_host_cl
     db_port = env.pg_port_cl
     passw = env.pg_password_cl
+elif env.deployed:
+    "Фулл докер-деплой"
+    db_host = env.pg_host_docker
 elif env.docker_db and env.celery_worker:
     "БД в Докере и запускается Воркер"
     db_host = env.pg_host_celery_worker_docker_db
 elif not env.cloud_db and env.celery_worker:
     "Локальная БД и Воркер"
     db_host = env.internal_host
-elif env.docker_db:
+elif env.docker_db and not env.dockerized:
     "БД в докере, Локалка подрубается"
     db_port = env.pg_port_docker
 
@@ -169,3 +177,8 @@ smtp = SMTP(
     start_tls=env.smtp_tls_on,
     tls_context=smtp_context
 )
+
+
+"Broadcast WebSocket"
+broadcast = Broadcast(f"redis://{env.redis_host}:{env.redis_port}" if not env.dockerized
+                      else f"redis://{env.redis_host_docker}:{env.redis_port_docker}")

@@ -2,6 +2,9 @@ from asyncpg import Connection
 from pydantic import EmailStr
 
 from core.config_dir.config import encryption
+from asyncpg.exceptions import UniqueViolationError
+
+from core.config_dir.logger import log_event
 
 
 class UsersQueries:
@@ -47,7 +50,7 @@ class AuthQueries:
 
 
     async def get_actual_rt(self, user_id: int, session_id: str):
-        query = '''SELECT refresh_token, seance FROM sessions_users
+        query = '''SELECT refresh_token FROM sessions_users
                    WHERE user_id = $1 AND session_id = $2 AND "exp" > now()'''
         res = await self.conn.fetchrow(query, user_id, session_id)
         return res

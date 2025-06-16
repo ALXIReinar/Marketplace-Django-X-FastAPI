@@ -1,12 +1,12 @@
 import os
 import inspect
-from datetime import datetime
 from pathlib import Path
 
 import logging
 from logging.config import dictConfig
 
 from starlette.requests import Request
+from starlette.websockets import WebSocket
 
 from core.config_dir.config import WORKDIR
 from core.utils.anything import create_log_dirs, Events, create_debug_log_dir
@@ -24,6 +24,10 @@ class InfoWarningFilter(logging.Filter):
 class ErrorFilter(logging.Filter):
     def logger_filter(self, log):
         return log.levelno == logging.CRITICAL
+
+class DebugFilter(logging.Filter):
+    def logger_filter(self, log):
+        return log.levelno == logging.DEBUG
 
 lvls = {
     "DEBUG": 10,
@@ -76,6 +80,9 @@ logger_settings = {
         },
         "error_filter": {
             "()": ErrorFilter,
+        },
+        "debug_filter": {
+            "()": DebugFilter,
         }
     },
     "handlers": {
@@ -92,7 +99,7 @@ logger_settings = {
             "when": "midnight",
             "backupCount": 60,
             "encoding": "utf8",
-            "filters": []
+            "filters": ["debug_filter"]
         },
         "info_warning_errors_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
@@ -117,7 +124,7 @@ logger_settings = {
     },
     "loggers": {
         "prod_log": {
-            "handlers": ["console", "info_warning_errors_file", "critical_file"],
+            "handlers": ["console", "info_warning_errors_file", "critical_file", "debug_file"],
             "level": "DEBUG",
             "propagate": False
         }
@@ -128,7 +135,7 @@ logging.config.dictConfig(logger_settings)
 logger = logging.getLogger('prod_log')
 
 
-def log_event(event: Events | str, *args, request: Request=None, level: str='INFO'):
+def log_event(event: Events | str, *args, request: Request | WebSocket=None, level: str='INFO'):
     cur_call = inspect.currentframe()
     outer = inspect.getouterframes(cur_call)[1]
     filename = os.path.relpath(outer.filename)
@@ -136,8 +143,10 @@ def log_event(event: Events | str, *args, request: Request=None, level: str='INF
     line = outer.lineno
 
     meth, url, ip = '', '', ''
-    if request:
+    if isinstance(request, Request):
         meth, url, ip = request.method, request.url, request.client.host
+    elif isinstance(request, WebSocket):
+        url, ip = request.url, request.client.host
 
     message = event % args if args else event
 
