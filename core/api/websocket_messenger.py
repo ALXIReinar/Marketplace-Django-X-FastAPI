@@ -1,19 +1,25 @@
 import asyncio
 import json
+import os.path
+from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile, Form
 from pydantic import ValidationError
 from starlette.requests import Request
+from starlette.responses import FileResponse, StreamingResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from core.config_dir.base_dependencies import PagenChatDep
 from core.config_dir.config import broadcast, env
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep, init_pool
-from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles
+from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
+    WSFileSchema
 from core.utils.anything import Tags, WSControl, cut_log_param
+from core.utils.file_cutter import content_cutter, cutter_types
 from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
+from core.utils.processing_data.raw_fields_to_pydantic import parse_schema
 from core.utils.websocket_tools.broadcast_channel import pub_sub
 from core.utils.celery_serializer import convert
 from core.utils.websocket_tools.ws_auth_ware import get_creds_open_online_connection
@@ -113,15 +119,22 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
 
 
 @router.post('/send_file/local')
-async def absorb_binary(file_hint: ChatSaveFiles, file_obj: UploadFile, request: Request, db: PgSqlDep):
-    if file_hint.event != WSControl.save_file:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал для JSON'})
+async def absorb_binary(
+        file_hint: Annotated[str, Form()],
+        file_obj: UploadFile,
+        request: Request,
+        db: PgSqlDep,
+):
+    file_hint = parse_schema(file_hint, ChatSaveFiles)
 
-    log_event('Загрузка файла: %s; user_id: %s; chat_id: ', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    if file_hint.event != WSControl.save_file:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал в JSON'})
+
+    log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = uuid4()
-    ext = 'mp4' # magic.Magic(mime=True).from_file(file_hint.file_name)
-    db_file_name =f'{env.local_storage}/{uniq_id}.{ext}'
-    with open(db_file_name, 'wb') as f:
+    ext = os.path.splitext(file_hint.file_name)[-1]
+    db_file_name =f'{env.local_storage}/{uniq_id}{ext}'
+    with open(f'.{db_file_name}', 'wb') as f:
         f.write(file_obj.file.read())
 
     saved_msg_json = await db.chats.save_message(
@@ -132,5 +145,36 @@ async def absorb_binary(file_hint: ChatSaveFiles, file_obj: UploadFile, request:
         content_path=db_file_name,
         reply_id=file_hint.reply_id
     )
-    log_event('Файл Сохранён!: %s; user_id: %s; chat_id: ', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    log_event('Файл Сохранён!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
+
+
+@router.get('/get_file/local')
+async def get_binary_file(file_obj: WSFileSchema, request: Request):
+    """
+    Допускается только:
+    chat_messages:
+     - type: 2 - media, только фото!!!
+             4 - doc
+    """
+    if file_obj.event != WSControl.get_file or file_obj.msg_type in (1, 3):
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип сообщения!'})
+
+    log_event('Отправлен файл: user_id: %s; s_id: %s; file_type: %s',
+              request.state.user_id, request.state.session_id, file_obj.msg_type, request=request)
+    return FileResponse(f'.{file_obj.file_path}', media_type='application/octet-stream')
+
+
+@router.get('/get_file_chunks/local')
+async def get_chunks_file(file_obj: WSFileSchema, request: Request):
+    """
+    Допускается только:
+    chat_messages:
+     - type: 2 - media, только видео!!!
+             3 - audio
+    """
+    if file_obj.event != WSControl.get_file or file_obj.msg_type in (1, 4):
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип передал'})
+
+    log_event('Стриминг файла: %s, msg_type: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
+    return StreamingResponse(content_cutter(file_obj.file_path), media_type=cutter_types[file_obj.msg_type])

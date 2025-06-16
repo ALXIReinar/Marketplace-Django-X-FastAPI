@@ -89,6 +89,7 @@ class Settings(BaseSettings):
 
     mail_sender: str
     dockerized: bool = os.getenv('DOCKERIZED', False)
+    deployed: bool = os.getenv('DEPLOYED', False)
     docker_db: bool = os.getenv('DOCKER_DB', False)
     cloud_db: bool = os.getenv('CLOUD_DB', False)
     docker_es: bool = os.getenv('DOCKER_ES', False)
@@ -129,6 +130,9 @@ if env.cloud_db:
     db_host = env.pg_host_cl
     db_port = env.pg_port_cl
     passw = env.pg_password_cl
+elif env.deployed:
+    "Фулл докер-деплой"
+    db_host = env.pg_host_docker
 elif env.docker_db and env.celery_worker:
     "БД в Докере и запускается Воркер"
     db_host = env.pg_host_celery_worker_docker_db
@@ -138,8 +142,6 @@ elif not env.cloud_db and env.celery_worker:
 elif env.docker_db and not env.dockerized:
     "БД в докере, Локалка подрубается"
     db_port = env.pg_port_docker
-if env.dockerized:
-    db_host = env.pg_host_docker
 
 pool_settings = dict(
     user=env.pg_user,
