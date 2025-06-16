@@ -30,6 +30,7 @@ services:
     image: alxireinar/marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
     environment:
+      - DEPLOYED=1
       - DOCKERIZED=1
       - CELERY_WORKER=1
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
@@ -125,6 +126,7 @@ services:
     env_file:
       - .env
     environment:
+      - DEPLOYED=1
       - DOCKERIZED=1
     restart: on-failure
     ports:
