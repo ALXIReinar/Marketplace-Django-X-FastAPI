@@ -2,8 +2,10 @@ import re
 
 from typing import Annotated
 
+
 from pydantic import BaseModel, Field, field_validator
 from pydantic import EmailStr
+from typing_extensions import Literal
 
 
 class ValidatePasswSchema(BaseModel):
@@ -54,3 +56,10 @@ class TokenPayloadSchema(BaseModel):
     id: int
     user_agent: str = Field(max_length=512)
     ip: str = Field(max_length=39)
+
+
+class WSContractSchema(BaseModel):
+    event: Literal['view_chat', 'close_chat']
+
+class WSOpenCloseSchema(WSContractSchema):
+    chat_id: int

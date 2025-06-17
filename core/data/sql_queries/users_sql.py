@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from asyncpg import Connection
 from pydantic import EmailStr
 
@@ -64,6 +66,7 @@ class ChatQueries:
 
     async def get_user_chats(self, user_id: int, limit: int, offset: int):
         query = '''
+<<<<<<< HEAD
         
         WITH last_msg AS ( 
         SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
@@ -72,6 +75,15 @@ class ChatQueries:
             SELECT chat_id FROM chat_users WHERE user_id = $1
         )
         ORDER BY chat_id, writed_at DESC
+=======
+        WITH last_msg AS (
+            SELECT DISTINCT ON (chat_id) chat_id, owner_id, text_field, type, writed_at
+            FROM chat_messages
+            WHERE chat_id IN (
+                SELECT chat_id FROM chat_users WHERE user_id = $1
+            )
+            ORDER BY chat_id, writed_at DESC
+>>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)
         )
         SELECT c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode,
           COUNT(m.id) FILTER (WHERE m.local_id > COALESCE(r.last_read_local_id, 0)) AS unread_count
@@ -82,6 +94,7 @@ class ChatQueries:
         WHERE c_u.user_id = $1 AND c_u.state BETWEEN 1 AND 2
         GROUP BY c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode, r.last_read_local_id
         ORDER BY l.writed_at DESC
+<<<<<<< HEAD
         LIMIT $2 OFFSET $3
         '''
         chat_records = await self.conn.fetch(query, user_id, limit, offset)
@@ -102,3 +115,9 @@ class ChatQueries:
         '''
         local_id = await self.conn.execute(query, chat_id, user_id, text_field, msg_type, reply_id)
         return local_id
+=======
+        LIMIT $2 OFFSET $3;
+        '''
+        chat_records = await self.conn.fetch(query, user_id, limit, offset)
+        return chat_records
+>>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)

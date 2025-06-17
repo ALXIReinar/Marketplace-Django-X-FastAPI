@@ -8,10 +8,15 @@ from core.config_dir.base_dependencies import PagenChatDep
 from core.config_dir.config import broadcast
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
+<<<<<<< HEAD
 from core.schemas.chat_schema import WSMessageSchema
 from core.schemas.user_schemas import WSOpenCloseSchema
 from core.utils.anything import Tags, WSControl
 from core.utils.broadcast_channel import pub_sub
+=======
+from core.schemas.user_schemas import WSOpenCloseSchema
+from core.utils.anything import Tags, WSControl
+>>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)
 
 router = APIRouter(prefix='/api/chats', tags=[Tags.chat])
 
@@ -31,11 +36,16 @@ async def get_chats(pagen: PagenChatDep, request: Request, db: PgSqlDep):
              3 - audio
     """
     chats = await db.chats.get_user_chats(request.state.user_id, pagen.limit, pagen.offset)
+<<<<<<< HEAD
     return {'chat_records': chats}
+=======
+    return {'chat_previews': chats}
+>>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)
 
 
 @router.websocket('/{chat_id}')
 async def ws_control(contract_obj: WSOpenCloseSchema, ws: WebSocket, request: Request, db: PgSqlDep):
+<<<<<<< HEAD
     await ws.accept()
     if contract_obj.event == WSControl.open:
         chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
@@ -55,3 +65,9 @@ async def ws_control(contract_obj: WSOpenCloseSchema, ws: WebSocket, request: Re
 
 @router.post('/send_message')
 async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSqlDep):
+=======
+    if contract_obj.event == WSControl.open:
+        await ws.accept()
+        try:
+
+>>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)

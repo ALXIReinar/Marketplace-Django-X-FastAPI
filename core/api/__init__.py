@@ -8,6 +8,7 @@ from .favorites import router as favorite_router
 from .orders import router as order_router
 from .websocket_messenger import router as messenger_router
 from ..utils.anything import Tags
+from .websocket_messenger import router as messenger_router
 
 main_router = APIRouter()
 
@@ -17,6 +18,10 @@ main_router.include_router(search_router)
 main_router.include_router(favorite_router)
 main_router.include_router(order_router)
 main_router.include_router(messenger_router)
+<<<<<<< HEAD
+=======
+
+>>>>>>> cbe7169 (проработка вебсокета по части БД, ручка на поднятие индекса в ЕС)
 
 
 @main_router.get('/api/bg_tasks/{task_id}', tags=[Tags.celery_bg])
