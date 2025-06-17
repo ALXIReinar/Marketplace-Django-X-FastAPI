@@ -15,7 +15,7 @@ from core.config_dir.config import broadcast, env
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep, init_pool
 from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
-    WSFileSchema, WSReadUpdateSchema
+    WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema
 from core.utils.anything import Tags, WSControl, cut_log_param
 from core.utils.file_cutter import content_cutter, cutter_types
 from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
@@ -133,9 +133,9 @@ async def absorb_binary(
         raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал в JSON'})
 
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
-    uniq_id = uuid4()
+    uniq_id = str(uuid4())
     ext = os.path.splitext(file_hint.file_name)[-1]
-    db_file_name =f'{uniq_id}{ext}'
+    db_file_name =f'chats/{uniq_id}{ext}'
     with open(f'.{env.local_storage}/{db_file_name}', 'wb') as f:
         f.write(file_obj.file.read())
 
@@ -147,6 +147,7 @@ async def absorb_binary(
         content_path=db_file_name,
         reply_id=file_hint.reply_id
     )
+    saved_msg_json['file_name'] = uniq_id
     log_event('Объект сохранённого сообщения: %s', saved_msg_json, level='DEBUG')
     log_event('Файл Сохранён!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
@@ -194,3 +195,13 @@ async def update_read_count(contract_obj: WSReadUpdateSchema, request: Request, 
     log_event("Новые прочитанные сообщения | user_id: %s; chat_id: %s; msg_local_id: %s",
               contract_obj.user_id, contract_obj.chat_id, contract_obj.msg_id, request=request)
     return {'success': True, 'message': 'Счётчик обновлён'}
+
+
+@router.put('/commit_msg')
+async def commit_message(contract_obj: WSCommitMsgSchema, request: Request, db: PgSqlDep):
+    if contract_obj.event != WSControl.commit_msg:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип передал'})
+
+    await db.chats.commit_message(contract_obj.chat_id, contract_obj.msg_id)
+    log_event('Сообщение утверждено и отправлено | chat_id: %s; msg_local_id: %s', contract_obj.chat_id, contract_obj.msg_id, request=request)
+    return {'success': True, 'message': 'Коммит сообщения успешен!'}

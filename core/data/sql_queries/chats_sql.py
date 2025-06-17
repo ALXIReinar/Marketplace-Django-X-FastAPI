@@ -18,11 +18,12 @@ class ChatQueries:
             ORDER BY c_m.chat_id, c_m.writed_at DESC
         ),
         unread AS (
-            SELECT m.chat_id, COUNT(*) AS unread_count
-            FROM chat_messages m
-            JOIN readed_mes r ON r.chat_id = m.chat_id AND r.user_id = $1
-            WHERE m.local_id > COALESCE(r.last_read_local_id, 0)
-            GROUP BY m.chat_id
+            SELECT c_u.chat_id, COUNT(m.id) FILTER (WHERE m.local_id > COALESCE(r.last_read_local_id, 0)) AS unread_count
+            FROM chat_users c_u
+            LEFT JOIN readed_mes r ON r.chat_id = c_u.chat_id AND r.user_id = $1
+            LEFT JOIN chat_messages m ON m.chat_id = c_u.chat_id AND m.is_commited = true
+            WHERE c_u.user_id = $1
+            GROUP BY c_u.chat_id
         )
         SELECT c_u.chat_id, c_u.chat_name, c_u.chat_img, l.text_field, l.type, l.writed_at, c_u.notif_mode,
             CASE WHEN l.owner_id = $1 THEN TRUE ELSE FALSE END AS is_me,
@@ -75,19 +76,33 @@ class ChatQueries:
         return {'success': True, 'msg_id': local_id, 'user_id': user_id}
 
     async def get_chat_messages(self, chat_id: int, limit: int, offset: int, user_id: int | None = None):
-        sub_query_for_tp_on_edge_mes = f'''
-        AND c_m.local_id > (SELECT COALESCE(last_read_local_id, 0) AS first_unread FROM readed_mes WHERE chat_id = $1 AND user_id = $4) - {env.delta_layout_msg}'''
-        query = '''
-        SELECT c_m.owner_id, c_u.chat_img, c_m.text_field, c_m.content_path, c_m.type, c_m.writed_at, c_m.reply_id, c_m.local_id FROM chat_messages c_m
+        query_unread_less_3 = '''
+        SELECT c_m.owner_id, c_u.chat_img, c_m.text_field, c_m.content_path, c_m.type,
+	           c_m.writed_at, c_m.reply_id, c_m.local_id
+        FROM chat_messages c_m
         JOIN chat_users c_u ON c_u.chat_id = c_m.chat_id AND c_u.user_id = c_m.owner_id
-        WHERE c_m.chat_id = $1 {}
+        WHERE c_m.chat_id = $1 AND c_m.is_commited = true
+        ORDER BY c_m.local_id DESC
+        LIMIT $2 OFFSET $3
+        '''
+        query_unread = f'''
+        WITH last_read AS (
+          SELECT COALESCE(
+            (SELECT last_read_local_id FROM readed_mes WHERE chat_id = $1 AND user_id = $4), 0) 
+            AS first_unread)
+        SELECT c_m.owner_id, c_u.chat_img, c_m.text_field, c_m.content_path, c_m.type,
+               c_m.writed_at, c_m.reply_id, c_m.local_id, l_r.first_unread
+        FROM chat_messages c_m
+        JOIN chat_users c_u ON c_u.chat_id = c_m.chat_id AND c_u.user_id = c_m.owner_id
+        CROSS JOIN last_read l_r
+        WHERE c_m.chat_id = $1 AND c_m.local_id > l_r.first_unread - {env.delta_layout_msg} AND c_m.is_commited = true
         ORDER BY c_m.local_id DESC
         LIMIT $2 OFFSET $3
         '''
         if user_id is None:
-            res = await self.conn.fetch(query.format(''), chat_id, limit, offset)
+            res = await self.conn.fetch(query_unread_less_3, chat_id, limit, offset)
         else:
-            res = await self.conn.fetch(query.format(sub_query_for_tp_on_edge_mes), chat_id, limit, offset, user_id)
+            res = await self.conn.fetch(query_unread, chat_id, limit, offset, user_id)
         return res
 
 
@@ -97,3 +112,10 @@ class ChatQueries:
         ON CONFLICT (user_id, chat_id) DO UPDATE SET last_read_local_id = $3
         '''
         await self.conn.execute(query, user_id, chat_id, local_mes_id)
+
+
+    async def commit_message(self, chat_id: int, local_id: int):
+        query = '''
+        UPDATE chat_messages SET is_commited = true WHERE chat_id = $1 AND local_id = $2
+        '''
+        await self.conn.execute(query, chat_id, local_id)

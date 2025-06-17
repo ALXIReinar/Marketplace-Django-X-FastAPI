@@ -6,7 +6,7 @@ from core.schemas.product_schemas import PaginationSchema
 
 
 class WSContractSchema(BaseModel):
-    event: Literal['view_chat', 'close_chat', 'last_messages_layout', 'send_msg', 'get_file', 'save_file', 'set_readed']
+    event: Literal['view_chat', 'close_chat', 'last_messages_layout', 'send_msg', 'get_file', 'save_file', 'set_readed', 'commit_msg']
 
 class WSOpenCloseSchema(WSContractSchema):
     chat_id: int
@@ -41,4 +41,9 @@ class WSFileSchema(WSContractSchema):
 class WSReadUpdateSchema(WSContractSchema):
     chat_id: int
     user_id: int
+    msg_id: int
+
+
+class WSCommitMsgSchema(WSContractSchema):
+    chat_id: int
     msg_id: int

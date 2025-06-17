@@ -58,6 +58,7 @@ class WSControl:
     get_file: str = 'get_file'
     save_file: str = 'save_file'
     set_readed: str = 'set_readed'
+    commit_msg: str = 'commit_msg'
 
 
 @dataclass
