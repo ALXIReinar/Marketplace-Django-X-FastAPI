@@ -120,7 +120,9 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
 
 @router.post('/send_file/local')
 async def absorb_binary(
-        file_hint: Annotated[str, Form()],
+        file_hint: Annotated[str, Form(
+            example='{"event":"save_file","chat_id":4,"type":2,"text_field":null,"reply_id":null,"file_name":"example.png"}'
+        )],
         file_obj: UploadFile,
         request: Request,
         db: PgSqlDep,
@@ -133,8 +135,8 @@ async def absorb_binary(
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = uuid4()
     ext = os.path.splitext(file_hint.file_name)[-1]
-    db_file_name =f'{env.local_storage}/{uniq_id}{ext}'
-    with open(f'.{db_file_name}', 'wb') as f:
+    db_file_name =f'{uniq_id}{ext}'
+    with open(f'.{env.local_storage}/{db_file_name}', 'wb') as f:
         f.write(file_obj.file.read())
 
     saved_msg_json = await db.chats.save_message(
@@ -145,6 +147,7 @@ async def absorb_binary(
         content_path=db_file_name,
         reply_id=file_hint.reply_id
     )
+    log_event('Объект сохранённого сообщения: %s', saved_msg_json, level='DEBUG')
     log_event('Файл Сохранён!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
@@ -163,7 +166,7 @@ async def get_binary_file(file_obj: WSFileSchema, request: Request):
 
     log_event('Отправлен файл: user_id: %s; s_id: %s; file_type: %s',
               request.state.user_id, request.state.session_id, file_obj.msg_type, request=request)
-    return FileResponse(f'.{file_obj.file_path}', media_type='application/octet-stream')
+    return FileResponse(f'.{env.local_storage}{file_obj.file_path}', media_type='application/octet-stream')
 
 
 @router.get('/get_file_chunks/local')
