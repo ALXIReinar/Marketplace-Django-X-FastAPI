@@ -15,6 +15,8 @@ register(
 )
 
 
+uvi_host = env.uvicorn_host_docker if env.deployed else env.uvicorn_host
+bg_link = f'{env.transfer_protocol}://{uvi_host}:8000/api/bg_tasks'
 broker = env.celery_broker_url if env.dockerized else f"pyamqp://{env.rabbitmq_user}@localhost//"
 backend_result = env.celery_result_backend if env.dockerized else f"redis://localhost:{env.redis_port}/0"
 

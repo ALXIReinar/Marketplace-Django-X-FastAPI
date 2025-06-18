@@ -8,7 +8,7 @@ from fastapi import Request, Response
 from starlette.responses import JSONResponse
 
 from core.config_dir.logger import log_event
-from core.data.postgre import init_pool
+from core.data.postgre import set_connection, PgSql
 from core.utils.anything import Events
 from core.config_dir.urls_middlewares import apis_dont_need_auth, white_list_postfix, white_list_prefix_cookies, \
     white_list_prefix
@@ -74,7 +74,9 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
 
 
             "процесс выпуска токена"
-            async with init_pool() as db:
+            pool = await set_connection()
+            async with pool.acquire() as conn:
+                db = PgSql(conn)
                 refresh_token = request.cookies.get('refresh_token')
                 new_token = await reissue_aT(access_token, refresh_token, db)
             if new_token == 401:

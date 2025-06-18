@@ -84,6 +84,7 @@ class Settings(BaseSettings):
     smtp_cert_docker: str
 
     JWTs: AuthConfig = AuthConfig()
+    transfer_protocol: str
     internal_host: str
     uvicorn_host: str
     uvicorn_host_docker: str

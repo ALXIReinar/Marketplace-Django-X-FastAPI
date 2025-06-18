@@ -70,7 +70,7 @@ async def account_recovery(email: RecoveryPasswSchema, db: PgSqlDep, request: Re
 
     user = await db.users.get_id_name_by_email(email.email)
     reset_token = str(uuid4())
-    sending_email_code.apply_async(args=[email.email, user, reset_token])
+    sending_email_code.delay(email.email, user, reset_token)
 
     return JSONResponse(status_code=200, content={
         'reset_token': reset_token,

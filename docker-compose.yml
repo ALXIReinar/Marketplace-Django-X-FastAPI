@@ -78,39 +78,39 @@ services:
     networks:
       net_con:
 
-  es01:
-    depends_on:
-      - pg_db
-    container_name: es_pied_market
-    image: elasticsearch:${ELASTIC_VERSION}
-    environment:
-      - node.name=es01
-      - discovery.type=single-node
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
-    mem_limit: 3g
-    volumes:
-      - esdata01:/usr/share/elasticsearch/data
-      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
-    ports:
-      - '9200:9200'
-    networks:
-      net_con:
-
-  kibana:
-    depends_on:
-      - es01
-    container_name: kibana_pied_market
-    image: kibana:${ELASTIC_VERSION}
-    environment:
-      - ELASTICSEARCH_HOSTS=http://es01:${ELASTIC_PORT}
-    ports:
-      - '5602:5601'
-    networks:
-      net_con:
+#  es01:
+#    depends_on:
+#      - pg_db
+#    container_name: es_pied_market
+#    image: elasticsearch:${ELASTIC_VERSION}
+#    environment:
+#      - node.name=es01
+#      - discovery.type=single-node
+#      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+#
+#      - xpack.security.enabled=false
+#      - xpack.security.http.ssl.enabled=false
+#      - xpack.security.transport.ssl.enabled=false
+#    mem_limit: 3g
+#    volumes:
+#      - esdata01:/usr/share/elasticsearch/data
+#      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+#    ports:
+#      - '9200:9200'
+#    networks:
+#      net_con:
+#
+#  kibana:
+#    depends_on:
+#      - es01
+#    container_name: kibana_pied_market
+#    image: kibana:${ELASTIC_VERSION}
+#    environment:
+#      - ELASTICSEARCH_HOSTS=http://es01:${ELASTIC_PORT}
+#    ports:
+#      - '5602:5601'
+#    networks:
+#      net_con:
 
 
 networks:

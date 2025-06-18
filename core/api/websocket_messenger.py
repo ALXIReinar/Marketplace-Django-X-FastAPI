@@ -13,7 +13,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from core.config_dir.base_dependencies import PagenChatDep
 from core.config_dir.config import broadcast, env
 from core.config_dir.logger import log_event
-from core.data.postgre import PgSqlDep, init_pool
+from core.data.postgre import PgSqlDep, PgSql, set_connection
 from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
     WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema
 from core.utils.anything import Tags, WSControl, cut_log_param
@@ -80,7 +80,9 @@ async def ws_control(ws: WebSocket):
         chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
 
         "Получаем последние сообщения"
-        async with init_pool() as db:
+        pool = await set_connection()
+        async with pool.acquire() as conn:
+            db = PgSql(conn)
             last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset, contract_obj.user_id)
         log_event("Открыт ВебСокет; Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=ws)
         await ws.send_json({'event': WSControl.last_messages, "messages": convert(last_chat_messages)})
