@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Exchange, Queue
 from kombu.serialization import register
 
@@ -35,18 +36,39 @@ celery_bg = Celery(
     task_serializer='serialize_asyncpg_json',
     result_serializer='serialize_asyncpg_json',
     accept_content=['serialize_asyncpg_json'],
-    timezone='UTC',
     enable_utc=True,
 
     include=[
         'core.bg_tasks.multi_bg_render_data',
         'core.bg_tasks.account_recovery',
-        'core.bg_tasks.celery_processing'
-    ],
+        'core.bg_tasks.celery_processing',
+        'core.bg_tasks.regular_crons'
+    ]
 )
+celery_bg.conf.timezone = 'Europe/Moscow'
+celery_bg.conf.enable_utc = False
 celery_bg.conf.result_expires = 600
 
 celery_bg.conf.tasks_queues = [
     Queue(ext_prd_queue, exchange=exchange_mode, routing_key=large_prd_routing_key),
     Queue(mail_queue, exchange=exchange_mode, routing_key=mail_routing_key)
 ]
+
+celery_bg.conf.beat_schedule = {
+    # 'expired_rT_cleaner': {
+    #     'task': 'flush_expired_rT',
+    #     'schedule': crontab(day_of_month={13, 28})
+    # },
+    # 'trash_messages_cleaner': {
+    #     'task': 'clear_trash_messages',
+    #     'schedule': crontab(day_of_week=4)
+    # }
+    'expired_rT_cleaner': {
+        'task': 'core.bg_tasks.celery_processing.run_rT_cleaner',
+        'schedule': crontab(minute='*/2')
+    },
+    'trash_messages_cleaner': {
+        'task': 'core.bg_tasks.celery_processing.run_messages_cleaner',
+        'schedule': crontab(minute='*/2')
+    }
+}

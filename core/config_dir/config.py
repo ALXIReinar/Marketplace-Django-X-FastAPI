@@ -111,14 +111,14 @@ es_settings = dict(
     verify_certs=False
 )
 if env.dockerized:
-    es_host = env.elastic_host_docker
+    es_host = env.elastic_host_docker if env.docker_es else env.internal_host
 es_link = f'https://{es_host}:{env.elastic_port}'
 es_settings['hosts'] = [es_link]
 if env.docker_es:
     es_link = f'http://{es_host}:{env.elastic_port}'
-    es_settings = dict(
-        hosts=[es_link]
-    )
+es_settings = dict(
+    hosts=[es_link]
+)
 es_client = AsyncElasticsearch(**es_settings)
 
 

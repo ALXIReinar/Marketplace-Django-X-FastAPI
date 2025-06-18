@@ -1,10 +1,12 @@
 import asyncio
 
+from asgiref.sync import async_to_sync
 from asyncpg import Record
 from pydantic import EmailStr
 
 from core.bg_tasks.account_recovery import prepare_mail
 from core.bg_tasks.multi_bg_render_data import lvl1_load_data, lvl2_load_data, lvl3_load_data
+from core.bg_tasks.regular_crons import flush_expired_rT, clear_trash_messages
 from core.config_dir.celery_config import celery_bg, ext_prd_queue, large_prd_routing_key, mail_queue, mail_routing_key
 from core.config_dir.logger import log_event
 from core.utils.anything import Events, hide_log_param
@@ -26,9 +28,18 @@ def lvl3_render(prd_id: int):
     return asyncio.run(lvl3_load_data(prd_id))
 
 
-
 "Восстановление Аккаунта(Отправка письма с кодом)"
 @celery_bg.task(queue=mail_queue, routing_key=mail_routing_key)
 def sending_email_code(email: EmailStr, user: Record, reset_token: str):
     log_event(Events.bg_send_mail + "Постановка в очередь | email: %s; reset_token: %s", hide_log_param(email), reset_token, level='INFO')
     asyncio.run(prepare_mail(email, user, reset_token))
+
+
+"Периодические Задачи"
+@celery_bg.task()
+def run_rT_cleaner():
+    async_to_sync(flush_expired_rT)()
+
+@celery_bg.task()
+def run_messages_cleaner():
+    async_to_sync(clear_trash_messages)()

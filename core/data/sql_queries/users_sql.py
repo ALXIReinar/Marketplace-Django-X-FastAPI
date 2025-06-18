@@ -28,6 +28,8 @@ class UsersQueries:
         query = 'UPDATE users SET passw = $1 WHERE id = $2'
         await self.conn.execute(query, passw, user_id)
 
+
+
 class AuthQueries:
     def __init__(self, conn: Connection):
         self.conn = conn
@@ -67,3 +69,8 @@ class AuthQueries:
         '''
         res = await self.conn.fetchrow(query, user_id, user_agent)
         return res
+
+
+    async def slam_refresh_tokens(self):
+        query = 'DELETE FROM public.sessions_users WHERE exp < now()'
+        await self.conn.execute(query)

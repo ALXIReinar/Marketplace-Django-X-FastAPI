@@ -45,6 +45,9 @@ class Events:
 
     bg_send_mail = "Отправка Письма | "
 
+    periodic_cron = 'Крона запущена | '
+    cron_completed = 'Регулярная таска выполнена | '
+
     TEST = "Логи работают!"
     plug = ''
 

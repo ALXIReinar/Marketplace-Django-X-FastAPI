@@ -100,6 +100,7 @@ class ChatQueries:
         LIMIT $2 OFFSET $3
         '''
         if user_id is None:
+            # если понадобится масштабирование, избавиться от КРОСС-ДЖОЙНА, вынести в 2 ЗАПРОСА на селект ласт айди и подстановку его через плейсхолдер + возврат в ДЖСОНе
             res = await self.conn.fetch(query_unread_less_3, chat_id, limit, offset)
         else:
             res = await self.conn.fetch(query_unread, chat_id, limit, offset, user_id)
@@ -113,9 +114,11 @@ class ChatQueries:
         '''
         await self.conn.execute(query, user_id, chat_id, local_mes_id)
 
-
     async def commit_message(self, chat_id: int, local_id: int):
-        query = '''
-        UPDATE chat_messages SET is_commited = true WHERE chat_id = $1 AND local_id = $2
-        '''
+        query = 'UPDATE chat_messages SET is_commited = true WHERE chat_id = $1 AND local_id = $2'
         await self.conn.execute(query, chat_id, local_id)
+
+
+    async def remove_rubbish_messages(self):
+        query = 'DELETE FROM chat_messages WHERE is_commited = false'
+        await self.conn.execute(query)

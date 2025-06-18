@@ -27,6 +27,7 @@ class PgSql:
 
 connection: Optional[Pool] = None
 async def set_connection():
+    # ЗАМЕНИТЬ НА МЕСТО ИНИТ_ПУЛ(), ЧТОБЫ НЕ ПАДАЛО ПРИ МУЛЬТИПРОЦЕССИНГОВОМ ВЫЗЗВЕ!!!
     global connection
     if connection is None:
         connection = await create_pool(**pool_settings)
@@ -34,6 +35,7 @@ async def set_connection():
 
 @asynccontextmanager
 async def init_pool():
+    # НА ЗАМЕНУ ДЛЯ set_connection
     pool = await set_connection()
     async with pool.acquire() as session:
         yield PgSql(session)
