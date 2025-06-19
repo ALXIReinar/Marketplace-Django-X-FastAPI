@@ -14,8 +14,12 @@ register(
     content_encoding='utf-8'
 )
 
+uvi_host = env.uvicorn_host
+if env.deployed and env.celery_worker:
+    uvi_host = env.uvicorn_host_docker
+elif env.dockerized:
+    uvi_host = env.internal_host
 
-uvi_host = env.uvicorn_host_docker if env.deployed else env.uvicorn_host
 bg_link = f'{env.transfer_protocol}://{uvi_host}:8000/api/bg_tasks'
 broker = env.celery_broker_url if env.dockerized else f"pyamqp://{env.rabbitmq_user}@localhost//"
 backend_result = env.celery_result_backend if env.dockerized else f"redis://localhost:{env.redis_port}/0"
@@ -57,20 +61,12 @@ celery_bg.conf.tasks_queues = [
 ]
 
 celery_bg.conf.beat_schedule = {
-    # 'expired_rT_cleaner': {
-    #     'task': 'flush_expired_rT',
-    #     'schedule': crontab(day_of_month={13, 28})
-    # },
-    # 'trash_messages_cleaner': {
-    #     'task': 'clear_trash_messages',
-    #     'schedule': crontab(day_of_week=4)
-    # }
     'expired_rT_cleaner': {
-        'task': 'core.bg_tasks.celery_processing.run_rT_cleaner',
-        'schedule': crontab(minute='*/2')
+        'task': 'flush_expired_rT',
+        'schedule': crontab(day_of_month={13, 28})
     },
     'trash_messages_cleaner': {
-        'task': 'core.bg_tasks.celery_processing.run_messages_cleaner',
-        'schedule': crontab(minute='*/2')
+        'task': 'clear_trash_messages',
+        'schedule': crontab(day_of_week=4)
     }
 }

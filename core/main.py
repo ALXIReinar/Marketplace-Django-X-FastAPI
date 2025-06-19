@@ -5,10 +5,12 @@ from starlette.staticfiles import StaticFiles
 
 from core.api.middlewares import LoggingTimeMiddleware, TrafficCounterMiddleware, AuthUxMiddleware
 from core.api import main_router
+from core.bg_tasks import bg_router
 
 from core.config_dir.config import app, pool_settings, broadcast, env
 
 app.include_router(main_router)
+app.include_router(bg_router)
 
 "Миддлвари"
 app.add_middleware(
@@ -17,7 +19,7 @@ app.add_middleware(
     allow_methods=['GET', 'POST', 'PUT', 'DELETE'],
     allow_headers=['*']
 )
-# app.add_middleware(TrafficCounterMiddleware)
+app.add_middleware(TrafficCounterMiddleware)
 app.add_middleware(AuthUxMiddleware)
 app.add_middleware(LoggingTimeMiddleware)
 

@@ -12,19 +12,19 @@ from core.utils.anything import Events, hide_log_param
 def lvl1_render(prd_id: int, front_cached: bool, user_id: int):
     log_event(Events.bg_queue_enter.format(1) + f'prd_id = {prd_id}', level='INFO')
     return requests.post(
-        f'{bg_link}/api/bg_tasks/ext_prd/lvl1', json={'prd_id': prd_id, 'front_cached': front_cached, 'user_id': user_id})
+        f'{bg_link}/ext_prd/lvl1', json={'prd_id': prd_id, 'front_cached': front_cached, 'user_id': user_id}).json()
 
 @celery_bg.task(queue=ext_prd_queue, routing_key=large_prd_routing_key)
 def lvl2_render(prd_id: int, seller_id: int):
     log_event(Events.bg_queue_enter.format(2) + f'prd_id = {prd_id}', level='INFO')
     return requests.post(
-        f'{bg_link}/api/bg_tasks/ext_prd/lvl2', json={'prd_id': prd_id, 'seller_id': seller_id})
+        f'{bg_link}/ext_prd/lvl2', json={'prd_id': prd_id, 'seller_id': seller_id}).json()
 
 @celery_bg.task(queue=ext_prd_queue, routing_key=large_prd_routing_key)
 def lvl3_render(prd_id: int):
     log_event(Events.bg_queue_enter.format(3) + f'prd_id = {prd_id}', level='INFO')
     return requests.post(
-        f'{bg_link}/api/bg_tasks/ext_prd/lvl3', json={'prd_id': prd_id}).json()
+        f'{bg_link}/ext_prd/lvl3', json={'prd_id': prd_id}).json()
 
 
 "Восстановление Аккаунта(Отправка письма с кодом)"
@@ -38,8 +38,8 @@ def sending_email_code(email: EmailStr, user: Record, reset_token: str):
 "Периодические Задачи"
 @celery_bg.task()
 def run_rT_cleaner():
-    requests.delete('/api/bg_task/crons/flush_refresh-tokens')
+    requests.delete(f'{bg_link}/crons/flush_refresh-tokens').json()
 
 @celery_bg.task()
 def run_messages_cleaner():
-    requests.delete('/api/bg_task/crons/delete_chat-messages')
+    requests.delete(f'{bg_link}/crons/delete_chat-messages').json()
