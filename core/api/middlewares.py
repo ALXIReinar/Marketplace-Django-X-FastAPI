@@ -19,6 +19,8 @@ from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decod
 class TrafficCounterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         ip = request.client.host
+        if ip in allowed_ips:
+            return await call_next(request)
 
         async with get_redis_connection() as redis:
             request_counter = await redis.get(ip)
