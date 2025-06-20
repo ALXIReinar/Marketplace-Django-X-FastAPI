@@ -13,7 +13,9 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from core.config_dir.base_dependencies import PagenChatDep
 from core.config_dir.config import broadcast, env
 from core.config_dir.logger import log_event
+from core.bg_tasks.celery_processing import bg_s3_upload
 from core.data.postgre import PgSqlDep, PgSql, set_connection
+from core.data.s3_storage import S3Dep
 from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
     WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema
 from core.utils.anything import Tags, WSControl, cut_log_param
@@ -123,22 +125,25 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
 @router.post('/send_file/local')
 async def absorb_binary(
         file_hint: Annotated[str, Form(
-            example='{"event":"save_file","chat_id":4,"type":2,"text_field":null,"reply_id":null,"file_name":"example.png"}'
+            example='{"event":"save_file_local","chat_id":4,"type":2,"text_field":null,"reply_id":null,"file_name":"example.png"}'
         )],
         file_obj: UploadFile,
         request: Request,
         db: PgSqlDep,
 ):
+    """
+    ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB
+    """
     file_hint = parse_schema(file_hint, ChatSaveFiles)
 
-    if file_hint.event != WSControl.save_file:
+    if file_hint.event != WSControl.save_file_local:
         raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал в JSON'})
 
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = str(uuid4())
     ext = os.path.splitext(file_hint.file_name)[-1]
     db_file_name =f'chats/{uniq_id}{ext}'
-    with open(f'.{env.local_storage}/{db_file_name}', 'wb') as f:
+    with open(f'{env.abs_path}{env.local_storage}/{db_file_name}', 'wb') as f:
         f.write(file_obj.file.read())
 
     saved_msg_json = await db.chats.save_message(
@@ -150,7 +155,6 @@ async def absorb_binary(
         reply_id=file_hint.reply_id
     )
     saved_msg_json['file_name'] = uniq_id
-    log_event('Объект сохранённого сообщения: %s', saved_msg_json, level='DEBUG')
     log_event('Файл Сохранён!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
@@ -186,6 +190,50 @@ async def get_chunks_file(file_obj: WSFileSchema, request: Request):
     log_event('Стриминг файла: %s, msg_type: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
     return StreamingResponse(content_cutter(file_obj.file_path), media_type=cutter_types[file_obj.msg_type])
 
+
+"S3 Storage Save Binary"
+@router.post('/send_file/s3')
+async def save_to_bucket(
+        file_hint: Annotated[str, Form(
+            example='{"event":"save_file_s3","chat_id":4,"type":2,"text_field":null,"reply_id":null,"file_name":"example.png"}'
+        )],
+        file_obj: UploadFile,
+        request: Request,
+        db: PgSqlDep,
+        s3: S3Dep
+):
+    """
+    ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB
+    """
+    file_hint = parse_schema(file_hint, ChatSaveFiles)
+
+    if file_hint.event != WSControl.save_file_cloud:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал в JSON'})
+
+    log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    uniq_id = str(uuid4())
+    ext = os.path.splitext(file_hint.file_name)[-1]
+    db_file_name =f'chats/{uniq_id}{ext}'
+    if file_obj.size <= env.bg_upload_file_size:
+        await s3.save_file(file_obj, db_file_name, heavy_file=False)
+    else:
+        with open(f'{env.abs_path}/user_files_bg_dumps/{uniq_id}{ext}', 'wb') as f:
+            f.write(file_obj.file.read())
+        bg_s3_upload.delay(f'{uniq_id}{ext}')
+
+
+    saved_msg_json = await db.chats.save_message(
+        chat_id=file_hint.chat_id,
+        user_id=request.state.user_id,
+        msg_type=file_hint.type,
+        text_field=file_hint.text_field,
+        content_path=db_file_name,
+        reply_id=file_hint.reply_id
+    )
+    saved_msg_json['file_name'] = uniq_id
+    log_event('Файл Сохранён в Облако!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
+    return {'success': True, 'message': 'Сохранено, лови uuid!'}
 
 
 @router.put('/set_readed')

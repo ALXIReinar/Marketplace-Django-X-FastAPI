@@ -4,9 +4,9 @@ from starlette.requests import Request
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.schemas.product_schemas import LVL1ExtendedPrdSchema, LVL2ExtendedPrdSchema, ProductBase
-from core.utils.anything import Events, Tags
+from core.utils.anything import Events
 
-router = APIRouter(prefix='/api/bg_tasks/ext_prd', tags=[Tags.celery_bg])
+router = APIRouter(prefix='/ext_prd')
 
 
 

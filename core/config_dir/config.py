@@ -34,6 +34,8 @@ class AuthConfig(BaseModel):
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
     local_storage: str = '/core/templates/images'
+    cloud_storage: str = '/images'
+    bg_upload_file_size = 31_457_280 # 30MB
     delta_layout_msg: int = 20
 
     pg_db: str
@@ -159,9 +161,9 @@ pool_settings = dict(
 @asynccontextmanager
 async def cloud_session():
         config =  {
-            'aws_access_key_id': env.access_key,
-            'aws_secret_access_key': env.secret_key,
-            'endpoint_url': env.endpoint_url,
+            'aws_access_key_id': env.s3_access_key,
+            'aws_secret_access_key': env.s3_secret_key,
+            'endpoint_url': env.s3_endpoint_url,
         }
         async with get_session().create_client('s3', **config) as session:
             yield session

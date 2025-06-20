@@ -60,7 +60,8 @@ class WSControl:
     send_msg: str = 'send_msg'
     last_messages: str = 'last_messages_layout'
     get_file: str = 'get_file'
-    save_file: str = 'save_file'
+    save_file_local: str = 'save_file_fs'
+    save_file_cloud: str = 'save_file_s3'
     set_readed: str = 'set_readed'
     commit_msg: str = 'commit_msg'
 

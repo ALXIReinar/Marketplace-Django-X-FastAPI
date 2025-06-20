@@ -24,15 +24,19 @@ bg_link = f'{env.transfer_protocol}://{uvi_host}:8000/api/bg_tasks'
 broker = env.celery_broker_url if env.dockerized else f"pyamqp://{env.rabbitmq_user}@localhost//"
 backend_result = env.celery_result_backend if env.dockerized else f"redis://localhost:{env.redis_port}/0"
 
+"Методы обмена"
 ex_meth = 'ex_method'
 exchange_mode = Exchange(ex_meth, type='direct')
 
+"Очереди и их Роут-ключи"
 mail_queue = 'mail_queue'
 mail_routing_key = 'mail_routing_key'
 
 ext_prd_queue = 'extended_product_card_queue'
 large_prd_routing_key = 'prd_routing_key'
 
+file_queue = 'file_queue'
+file_routing_key = 'file_routing_key'
 
 celery_bg = Celery(
     'core',
@@ -48,6 +52,7 @@ celery_bg = Celery(
         'core.bg_tasks.multi_bg_render_data',
         'core.bg_tasks.account_recovery',
         'core.bg_tasks.celery_processing',
+        'core.bg_tasks.cloud_file_downloader',
         'core.bg_tasks.regular_crons'
     ]
 )
@@ -57,7 +62,8 @@ celery_bg.conf.result_expires = 600
 
 celery_bg.conf.tasks_queues = [
     Queue(ext_prd_queue, exchange=exchange_mode, routing_key=large_prd_routing_key),
-    Queue(mail_queue, exchange=exchange_mode, routing_key=mail_routing_key)
+    Queue(mail_queue, exchange=exchange_mode, routing_key=mail_routing_key),
+    Queue(file_queue, exchange=exchange_mode, routing_key=file_routing_key)
 ]
 
 celery_bg.conf.beat_schedule = {

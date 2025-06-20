@@ -5,7 +5,7 @@ from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.utils.anything import Events, Tags
 
-router = APIRouter(prefix='/api/bg_tasks/crons', tags=[Tags.crons])
+router = APIRouter(prefix='/crons')
 
 
 

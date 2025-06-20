@@ -1,18 +1,17 @@
 from random import randint
 from email.message import EmailMessage
 
-from asyncpg import Record
 from fastapi import APIRouter
 from pydantic import EmailStr
 from starlette.requests import Request
 
 from core.config_dir.config import smtp, env
 from core.config_dir.logger import log_event
-from core.data.redis_storage import get_redis_connection, RedisDep
+from core.data.redis_storage import RedisDep
 from core.schemas.user_schemas import RecoveryPrepareSchema
-from core.utils.anything import mail_ptn_forget_password_TEXT, mail_ptn_forget_password_HTML, hide_log_param, Tags
+from core.utils.anything import mail_ptn_forget_password_TEXT, mail_ptn_forget_password_HTML, hide_log_param
 
-router = APIRouter(prefix='/api/bg_tasks', tags=[Tags.celery_bg])
+router = APIRouter()
 
 
 
