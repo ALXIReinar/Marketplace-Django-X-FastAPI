@@ -6,7 +6,18 @@ from core.schemas.product_schemas import PaginationSchema
 
 
 class WSContractSchema(BaseModel):
-    event: Literal['view_chat', 'close_chat', 'last_messages_layout', 'send_msg', 'get_file', 'save_file_fs', 'save_file_s3', 'set_readed', 'commit_msg']
+    event: Literal[
+        'view_chat',
+        'close_chat',
+        'last_messages_layout',
+        'send_msg',
+        'get_file',
+        'save_file_fs',
+        'save_file_s3',
+        'get_s3-obj_url',
+        'set_readed',
+        'commit_msg'
+    ]
 
 class WSOpenCloseSchema(WSContractSchema):
     chat_id: int
@@ -47,3 +58,7 @@ class WSReadUpdateSchema(WSContractSchema):
 class WSCommitMsgSchema(WSContractSchema):
     chat_id: int
     msg_id: int
+
+class WSPresignedLinkSchema(WSContractSchema):
+    chat_id: int
+    file_keys: list[str]

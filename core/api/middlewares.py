@@ -81,20 +81,3 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
         request.state.user_id = int(access_token['sub'])
         request.state.session_id = access_token['s_id']
         return await call_next(request)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

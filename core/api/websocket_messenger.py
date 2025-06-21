@@ -4,7 +4,7 @@ import os.path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, UploadFile, Form
+from fastapi import APIRouter, HTTPException, Form, UploadFile
 from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import FileResponse, StreamingResponse
@@ -17,7 +17,7 @@ from core.bg_tasks.celery_processing import bg_s3_upload
 from core.data.postgre import PgSqlDep, PgSql, set_connection
 from core.data.s3_storage import S3Dep
 from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
-    WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema
+    WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema, WSPresignedLinkSchema
 from core.utils.anything import Tags, WSControl, cut_log_param
 from core.utils.file_cutter import content_cutter, cutter_types
 from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
@@ -143,8 +143,16 @@ async def absorb_binary(
     uniq_id = str(uuid4())
     ext = os.path.splitext(file_hint.file_name)[-1]
     db_file_name =f'chats/{uniq_id}{ext}'
-    with open(f'{env.abs_path}{env.local_storage}/{db_file_name}', 'wb') as f:
-        f.write(file_obj.file.read())
+    try:
+        with open(f'{env.abs_path}{env.local_storage}/{db_file_name}', 'wb') as f:
+            f.write(file_obj.file.read())
+    except OSError as oe:
+        log_event('Проблемы с ОС сервера | file: %s | Exception: %s', db_file_name, oe, level='CRITICAL')
+        raise HTTPException(status_code=500, detail='Проблемы сервером')
+    except Exception as e:
+        log_event('Непредвиденная ошибка при записи в локальную ФС | file: %s | Exception: %s',
+                  db_file_name, e, level='CRITICAL')
+        raise HTTPException(status_code=500, detail='Проблемы сервером')
 
     saved_msg_json = await db.chats.save_message(
         chat_id=file_hint.chat_id,
@@ -213,14 +221,21 @@ async def save_to_bucket(
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = str(uuid4())
     ext = os.path.splitext(file_hint.file_name)[-1]
-    db_file_name =f'chats/{uniq_id}{ext}'
+    db_file_name =f'users/chats/{uniq_id}{ext}'
     if file_obj.size <= env.bg_upload_file_size:
         await s3.save_file(file_obj, db_file_name, heavy_file=False)
     else:
-        with open(f'{env.abs_path}/user_files_bg_dumps/{uniq_id}{ext}', 'wb') as f:
-            f.write(file_obj.file.read())
-        bg_s3_upload.delay(f'{uniq_id}{ext}')
-
+        try:
+            with open(f'{env.abs_path}/user_files_bg_dumps/users_chats_{uniq_id}{ext}', 'wb') as f:
+                f.write(file_obj.file.read())
+        except OSError as oe:
+            log_event('Проблемы с ОС сервера | file: %s | Exception: %s', db_file_name, oe, level='CRITICAL')
+            raise HTTPException(status_code=500, detail='Проблемы сервером')
+        except Exception as e:
+            log_event('Непредвиденная ошибка при записи в ФС для дампа тяжёлого файла | file: %s | Exception: %s',
+                      db_file_name, e, level='CRITICAL')
+            raise HTTPException(status_code=500, detail='Проблемы сервером')
+        bg_s3_upload.delay(f'users_chats_{uniq_id}{ext}')
 
     saved_msg_json = await db.chats.save_message(
         chat_id=file_hint.chat_id,
@@ -234,6 +249,21 @@ async def save_to_bucket(
     log_event('Файл Сохранён в Облако!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
+
+@router.post('/bulk_presigned_urls')
+async def give_s3_object_urls(s3_req: WSPresignedLinkSchema, request: Request, s3: S3Dep):
+    if s3_req.event != WSControl.presigned_url:
+        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал'})
+
+    pre_urls: dict[str, str] = dict()
+    log_event('Начало выдачи ссылок на s3-объекты в кол-ве: %s', len(s3_req.file_keys), request=request, level='WARNING')
+    for idx, file in enumerate(s3_req.file_keys, 1):
+        pre_url = await s3.set_presigned_url(file)
+        pre_urls[file] = pre_url
+
+    await broadcast.publish(f'{WSControl.ws_chat_channel}:{s3_req.chat_id}', json.dumps({'file_links': pre_urls}))
+    log_event('Бульк на s3-ссылки Отработал! | %s', len(pre_urls), request=request, level='WARNING')
+    return {'success': True, 'message': 'Доступ к объектам из S3'}
 
 
 @router.put('/set_readed')

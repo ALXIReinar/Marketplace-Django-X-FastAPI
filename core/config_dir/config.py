@@ -34,8 +34,8 @@ class AuthConfig(BaseModel):
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
     local_storage: str = '/core/templates/images'
-    cloud_storage: str = '/images'
-    bg_upload_file_size = 31_457_280 # 30MB
+    cloud_storage: str = 'images'
+    bg_upload_file_size: int = 31_457_280 # 30MB
     delta_layout_msg: int = 20
 
     pg_db: str

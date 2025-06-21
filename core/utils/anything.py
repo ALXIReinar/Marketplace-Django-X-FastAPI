@@ -62,6 +62,7 @@ class WSControl:
     get_file: str = 'get_file'
     save_file_local: str = 'save_file_fs'
     save_file_cloud: str = 'save_file_s3'
+    presigned_url: str = 'get_s3-obj_url'
     set_readed: str = 'set_readed'
     commit_msg: str = 'commit_msg'
 

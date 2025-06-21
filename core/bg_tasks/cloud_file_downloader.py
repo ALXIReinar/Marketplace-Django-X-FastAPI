@@ -13,8 +13,9 @@ router = APIRouter(prefix='/s3_upload')
 async def try_s3_save(file_path: str, request: Request, s3: S3Dep):
     log_event('Фоновая загрузка тяжёлого файла | file: %s', file_path, request=request)
     try:
+        s3_path = '/'.join(file_path.split('_'))
         with open(f'{env.abs_path}/user_files_bg_dumps/{file_path}', 'rb') as f:
-            await s3.save_file(f, file_path, heavy_file=True)
+            await s3.save_file(f, s3_path, heavy_file=True)
     except FileNotFoundError:
         log_event('Файл не найден | %s', file_path, level='ERROR')
         raise HTTPException(status_code=404, detail='Файл не найден')
