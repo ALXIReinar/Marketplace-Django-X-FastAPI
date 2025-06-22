@@ -1,4 +1,5 @@
 import os
+from time import sleep
 
 import requests
 from asyncpg import Record
@@ -39,7 +40,7 @@ def sending_email_code(email: EmailStr, user: Record, reset_token: str):
 
 
 "Загрузка файла в облако"
-@celery_bg.task(bind=True, max_retries=5, default_retry_delay=60, queue=file_queue, routing_key=file_routing_key)
+@celery_bg.task(bind=True, max_retries=3, default_retry_delay=60, queue=file_queue, routing_key=file_routing_key)
 def bg_s3_upload(self, file_path: str):
     try:
         response = requests.put(f'{bg_link}/s3_upload/saving', params={'file_path': file_path})
@@ -69,4 +70,5 @@ def transfer_to_s3():
     url_cron = f'{bg_link}/s3_upload/saving'
     for file_key in os.listdir(user_files):
         requests.put(url_cron, params={'file_path': file_key}).json()
+        sleep(0.1)
     log_event('Загружено в s3 файлов: %s', qty_user_files, level='WARNING')

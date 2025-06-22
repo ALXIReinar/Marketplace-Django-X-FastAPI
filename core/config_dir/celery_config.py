@@ -68,11 +68,19 @@ celery_bg.conf.tasks_queues = [
 
 celery_bg.conf.beat_schedule = {
     'expired_rT_cleaner': {
-        'task': 'flush_expired_rT',
+        'task': 'core.bg_tasks.celery_processing.run_rT_cleaner',
         'schedule': crontab(day_of_month={13, 28})
     },
     'trash_messages_cleaner': {
-        'task': 'clear_trash_messages',
+        'task': 'core.bg_tasks.celery_processing.run_messages_cleaner',
         'schedule': crontab(day_of_week=4)
+    },
+    # 's3_kharon': {
+    #     'task': 'core.bg_tasks.celery_processing.transfer_to_s3',
+    #     'schedule': crontab(minute=0, hour='*')
+    # },
+    's3_kharon': {
+        'task': 'core.bg_tasks.celery_processing.transfer_to_s3',
+        'schedule': crontab(minute='*/2')
     }
 }

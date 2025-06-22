@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from fastapi.params import Depends
 from starlette.datastructures import UploadFile
 
-from core.config_dir.config import cloud_session, get_env_vars, env
+from core.config_dir.config import cloud_session, env
 from core.config_dir.logger import log_event
 
 
@@ -21,16 +21,15 @@ class S3Storage:
 
     async def save_file(self, uploaded_file, file_path: str, heavy_file: bool = False):
         log_event('Файл сохраняется в С3 | file: %s', file_path)
-        log_event('передаю объект с типом: %s; сам тип в сравнении: %s', type(uploaded_file), UploadFile, level='DEBUG')
         if isinstance(uploaded_file, UploadFile):
-            f = await uploaded_file.read()
-            content_length = len(f)
+            f = uploaded_file.file
+            content_length = uploaded_file.size
         else:
             f = uploaded_file
-            seeker = f.seek(0, os.SEEK_END)
-            content_length = seeker.tell()
+            f.seek(0, os.SEEK_END)
+            content_length = f.tell()
             f.seek(0) # Проверка на file-like объект, а не bytes | str
-
+        log_event('Тип файла: %s; size: %s; filename: %s', type(f), content_length, file_path)
         try:
             await self.session.put_object(
                 Bucket=self.bucket,
@@ -45,7 +44,7 @@ class S3Storage:
 
         if heavy_file:
             log_event('Удаление файла %s', file_path, level='WARNING')
-            os.remove(f'{env.abs_path}/user_files_bg_dumps')
+            os.remove(f'{env.abs_path}/user_files_bg_dumps/{file_path.replace("/", "_")}')
             log_event('Файл Удалён! %s', file_path, level='WARNING')
 
 
@@ -60,12 +59,13 @@ class S3Storage:
             ExpiresIn=ttl
         )
         log_event('Выдан юрл на s3-объект: %s', file_key)
+        log_event('%s; key_file: %s', presigned_url, f'{env.cloud_storage}/{file_key}', level='DEBUG')
         return presigned_url
 
 
 
 async def set_cloud_session():
     async with cloud_session() as cloud:
-        yield S3Storage(cloud, get_env_vars().s3_bucket_name)
+        yield S3Storage(cloud, env.s3_bucket_name)
 
 S3Dep = Annotated[S3Storage, Depends(set_cloud_session)]

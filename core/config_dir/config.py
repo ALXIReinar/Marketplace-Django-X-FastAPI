@@ -5,6 +5,7 @@ from functools import lru_cache
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from botocore.config import Config
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from aiobotocore.session import get_session
@@ -69,8 +70,11 @@ class Settings(BaseSettings):
 
     s3_access_key: str
     s3_secret_key: str
+    s3_region: str
     s3_endpoint_url: str
     s3_bucket_name: str
+    s3_root_cert: str
+    s3_root_cert_docker: str
 
     rabbitmq_user: str
 
@@ -160,10 +164,17 @@ pool_settings = dict(
 "S3 Storage"
 @asynccontextmanager
 async def cloud_session():
+        url_config = Config(
+            region_name='ru-7',
+            s3={'addressing_style': 'path'}
+        )
         config =  {
             'aws_access_key_id': env.s3_access_key,
             'aws_secret_access_key': env.s3_secret_key,
+            'region_name': env.s3_region,
             'endpoint_url': env.s3_endpoint_url,
+            'config': url_config,
+            'verify': env.s3_root_cert_docker if env.dockerized else env.s3_root_cert
         }
         async with get_session().create_client('s3', **config) as session:
             yield session
