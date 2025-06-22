@@ -5,16 +5,12 @@ from fastapi import HTTPException
 from fastapi.params import Depends
 from starlette.datastructures import UploadFile
 
-from core.config_dir.config import cloud_session, env
+from core.config_dir.config import async_cloud_session, env
 from core.config_dir.logger import log_event
 
 
-class S3Storage:
-    def __init__(
-            self,
-            _cloud_session,
-            bucket_name,
-    ):
+class S3StorageAsync:
+    def __init__(self, _cloud_session, bucket_name):
         self.bucket = bucket_name
         self.session = _cloud_session
 
@@ -47,25 +43,23 @@ class S3Storage:
             os.remove(f'{env.abs_path}/user_files_bg_dumps/{file_path.replace("/", "_")}')
             log_event('Файл Удалён! %s', file_path, level='WARNING')
 
-
     async def set_presigned_url(self, file_key: str, ttl: int = 3600):
+        key = f'{env.cloud_storage}/{file_key}'
         params = {
             'Bucket': self.bucket,
-            'Key': f'{env.cloud_storage}/{file_key}'
+            'Key': key
         }
         presigned_url = await self.session.generate_presigned_url(
             'get_object',
             Params=params,
             ExpiresIn=ttl
         )
-        log_event('Выдан юрл на s3-объект: %s', file_key)
-        log_event('%s; key_file: %s', presigned_url, f'{env.cloud_storage}/{file_key}', level='DEBUG')
+        log_event('Выдан юрл на s3-объект: %s', key)
         return presigned_url
 
 
+async def set_async_cloud_session():
+    async with async_cloud_session() as cloud:
+        yield S3StorageAsync(cloud, env.s3_bucket_name)
 
-async def set_cloud_session():
-    async with cloud_session() as cloud:
-        yield S3Storage(cloud, env.s3_bucket_name)
-
-S3Dep = Annotated[S3Storage, Depends(set_cloud_session)]
+S3Dep = Annotated[S3StorageAsync, Depends(set_async_cloud_session)]

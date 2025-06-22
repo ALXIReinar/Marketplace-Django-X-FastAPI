@@ -8,7 +8,7 @@ from pathlib import Path
 from botocore.config import Config
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
-from aiobotocore.session import get_session
+from aiobotocore.session import get_session as async_get_session
 from aiosmtplib import SMTP
 from broadcaster import Broadcast
 from passlib.context import CryptContext
@@ -162,22 +162,22 @@ pool_settings = dict(
 
 
 "S3 Storage"
+url_config = Config(
+    region_name='ru-7',
+    s3={'addressing_style': 'virtual'}
+)
+s3_config =  {
+    'aws_access_key_id': env.s3_access_key,
+    'aws_secret_access_key': env.s3_secret_key,
+    'region_name': env.s3_region,
+    'endpoint_url': env.s3_endpoint_url,
+    'config': url_config,
+    'verify': env.s3_root_cert_docker if env.dockerized else env.s3_root_cert
+}
 @asynccontextmanager
-async def cloud_session():
-        url_config = Config(
-            region_name='ru-7',
-            s3={'addressing_style': 'path'}
-        )
-        config =  {
-            'aws_access_key_id': env.s3_access_key,
-            'aws_secret_access_key': env.s3_secret_key,
-            'region_name': env.s3_region,
-            'endpoint_url': env.s3_endpoint_url,
-            'config': url_config,
-            'verify': env.s3_root_cert_docker if env.dockerized else env.s3_root_cert
-        }
-        async with get_session().create_client('s3', **config) as session:
-            yield session
+async def async_cloud_session():
+    async with async_get_session().create_client('s3', **s3_config) as session:
+        yield session
 
 
 "SMTP Service"
