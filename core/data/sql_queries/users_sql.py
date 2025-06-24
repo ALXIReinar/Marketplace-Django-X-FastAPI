@@ -2,9 +2,6 @@ from asyncpg import Connection
 from pydantic import EmailStr
 
 from core.config_dir.config import encryption
-from asyncpg.exceptions import UniqueViolationError
-
-from core.config_dir.logger import log_event
 
 
 class UsersQueries:
@@ -31,6 +28,8 @@ class UsersQueries:
         query = 'UPDATE users SET passw = $1 WHERE id = $2'
         await self.conn.execute(query, passw, user_id)
 
+
+
 class AuthQueries:
     def __init__(self, conn: Connection):
         self.conn = conn
@@ -45,7 +44,10 @@ class AuthQueries:
             ip: str,
             hashed_rT: str
     ):
-        query = 'INSERT INTO sessions_users (session_id, user_id, iat, exp, refresh_token, user_agent, ip) VALUES($1,$2,$3,$4,$5,$6,$7)'
+        query = '''
+        INSERT INTO sessions_users (session_id, user_id, iat, exp, refresh_token, user_agent, ip) VALUES($1,$2,$3,$4,$5,$6,$7)
+        ON CONFLICT (session_id) DO UPDATE SET  iat = $3, exp = $4, refresh_token = $5, ip = $7
+        '''
         await self.conn.execute(query, session_id, user_id, iat, exp, hashed_rT, user_agent, ip)
 
 
@@ -55,7 +57,20 @@ class AuthQueries:
         res = await self.conn.fetchrow(query, user_id, session_id)
         return res
 
+
     async def all_seances_user(self, user_id: int, session_id: str):
         query = 'SELECT user_agent, ip FROM sessions_users WHERE user_id = $1 AND session_id = $2'
         res = await self.conn.fetch(query, user_id, session_id)
         return res
+
+    async def check_exist_session(self, user_id: int, user_agent: str):
+        query = '''
+        SELECT session_id FROM public.sessions_users WHERE user_id = $1 AND user_agent = $2
+        '''
+        res = await self.conn.fetchrow(query, user_id, user_agent)
+        return res
+
+
+    async def slam_refresh_tokens(self):
+        query = 'DELETE FROM public.sessions_users WHERE exp < now()'
+        await self.conn.execute(query)

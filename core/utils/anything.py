@@ -19,6 +19,7 @@ class Tags:
     orders = 'Заказы'
     elastic_products = 'Товары *Elastic🔎*'
     celery_bg = 'Celery Фон🥬🐇'
+    crons = 'Отложенные задачи🕟'
     chat = 'Мессенджер💬'
     file_reader = 'Файловое Хранилище🗂'
 
@@ -45,6 +46,9 @@ class Events:
 
     bg_send_mail = "Отправка Письма | "
 
+    periodic_cron = 'Крона запущена | '
+    cron_completed = 'Регулярная таска выполнена | '
+
     TEST = "Логи работают!"
     plug = ''
 
@@ -56,7 +60,11 @@ class WSControl:
     send_msg: str = 'send_msg'
     last_messages: str = 'last_messages_layout'
     get_file: str = 'get_file'
-    save_file: str = 'save_file'
+    save_file_local: str = 'save_file_fs'
+    save_file_cloud: str = 'save_file_s3'
+    presigned_url: str = 'get_s3-obj_url'
+    set_readed: str = 'set_readed'
+    commit_msg: str = 'commit_msg'
 
 
 @dataclass

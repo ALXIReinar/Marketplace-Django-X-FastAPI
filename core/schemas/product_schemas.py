@@ -1,13 +1,12 @@
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 
 class ProductBase(BaseModel):
-    id: int
+    prd_id: int
 
 class ProductPreviewSchema(ProductBase):
-    seller_id: int
     prd_name: str
     cost: Decimal
     remain: int
@@ -18,6 +17,14 @@ class ProductPreviewSchema(ProductBase):
 
 class SearchSchema(BaseModel):
     text: str
+
+
+class LVL1ExtendedPrdSchema(ProductBase):
+    front_cached: bool
+    user_id: int
+
+class LVL2ExtendedPrdSchema(ProductBase):
+    seller_id: int
 
 
 class PaginationSchema(BaseModel):

@@ -56,3 +56,7 @@ class TokenPayloadSchema(BaseModel):
     id: int
     user_agent: str = Field(max_length=512)
     ip: str = Field(max_length=39)
+
+class RecoveryPrepareSchema(RecoveryPasswSchema):
+    user: dict
+    reset_token: str

@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from core.config_dir.config import encryption, env
-from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.schemas.user_schemas import TokenPayloadSchema
 from core.utils.anything import token_types, TokenTypes

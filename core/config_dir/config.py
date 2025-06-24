@@ -5,9 +5,10 @@ from functools import lru_cache
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from botocore.config import Config
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
-from aiobotocore.session import get_session
+from aiobotocore.session import get_session as async_get_session
 from aiosmtplib import SMTP
 from broadcaster import Broadcast
 from passlib.context import CryptContext
@@ -34,6 +35,10 @@ class AuthConfig(BaseModel):
 class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
     local_storage: str = '/core/templates/images'
+    cloud_storage: str = 'images'
+    bg_users_files: str = 'user_files_bg_dumps'
+    bg_upload_file_size: int = 31_457_280 # 30MB
+    delta_layout_msg: int = 20
 
     pg_db: str
     pg_user: str
@@ -66,8 +71,11 @@ class Settings(BaseSettings):
 
     s3_access_key: str
     s3_secret_key: str
+    s3_region: str
     s3_endpoint_url: str
     s3_bucket_name: str
+    s3_root_cert: str
+    s3_root_cert_docker: str
 
     rabbitmq_user: str
 
@@ -83,6 +91,7 @@ class Settings(BaseSettings):
     smtp_cert_docker: str
 
     JWTs: AuthConfig = AuthConfig()
+    transfer_protocol: str
     internal_host: str
     uvicorn_host: str
     uvicorn_host_docker: str
@@ -110,14 +119,14 @@ es_settings = dict(
     verify_certs=False
 )
 if env.dockerized:
-    es_host = env.elastic_host_docker
+    es_host = env.elastic_host_docker if env.docker_es else env.internal_host
 es_link = f'https://{es_host}:{env.elastic_port}'
 es_settings['hosts'] = [es_link]
 if env.docker_es:
     es_link = f'http://{es_host}:{env.elastic_port}'
-    es_settings = dict(
-        hosts=[es_link]
-    )
+es_settings = dict(
+    hosts=[es_link]
+)
 es_client = AsyncElasticsearch(**es_settings)
 
 
@@ -154,15 +163,22 @@ pool_settings = dict(
 
 
 "S3 Storage"
+url_config = Config(
+    region_name='ru-7',
+    s3={'addressing_style': 'virtual'}
+)
+s3_config =  {
+    'aws_access_key_id': env.s3_access_key,
+    'aws_secret_access_key': env.s3_secret_key,
+    'region_name': env.s3_region,
+    'endpoint_url': env.s3_endpoint_url,
+    'config': url_config,
+    'verify': env.s3_root_cert_docker if env.dockerized else env.s3_root_cert
+}
 @asynccontextmanager
-async def cloud_session():
-        config =  {
-            'aws_access_key_id': env.access_key,
-            'aws_secret_access_key': env.secret_key,
-            'endpoint_url': env.endpoint_url,
-        }
-        async with get_session().create_client('s3', **config) as session:
-            yield session
+async def async_cloud_session():
+    async with async_get_session().create_client('s3', **s3_config) as session:
+        yield session
 
 
 "SMTP Service"

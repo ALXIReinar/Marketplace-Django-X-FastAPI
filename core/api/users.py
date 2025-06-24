@@ -51,7 +51,7 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
 @router.put('/logout')
 async def log_out(request: Request, response: Response):
     response.delete_cookie('access_token')
-    # response.delete_cookie('refresh_token')
+    response.delete_cookie('refresh_token')
     log_event("Пользователь разлогинился | user_id: %s; s_id: %s", request.state.user_id, request.state.session_id, request=request)
     return {'success': True, 'message': 'Пользователь вне аккаунта'}
 
@@ -70,7 +70,7 @@ async def account_recovery(email: RecoveryPasswSchema, db: PgSqlDep, request: Re
 
     user = await db.users.get_id_name_by_email(email.email)
     reset_token = str(uuid4())
-    sending_email_code.apply_async(args=[email.email, user, reset_token])
+    sending_email_code.delay(email.email, user, reset_token)
 
     return JSONResponse(status_code=200, content={
         'reset_token': reset_token,
@@ -98,7 +98,6 @@ async def compare_mail_user_code(reset_token: str, code: str, request: Request, 
 async def reset_password(
         update_secrets: UpdatePasswSchema,
         db: PgSqlDep,
-        response: Response,
         request: Request,
         redis: RedisDep
 ):

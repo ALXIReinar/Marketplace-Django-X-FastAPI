@@ -25,29 +25,6 @@ services:
     networks:
       net_con:
 
-  celery_worker:
-    container_name: celery_worker_pied_market
-    image: alxireinar/marketplace_pied_market
-    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue
-    environment:
-      - DEPLOYED=1
-      - DOCKERIZED=1
-      - CELERY_WORKER=1
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-    develop:
-      watch:
-        - target: /app
-          path: ./core
-          action: sync+restart
-    depends_on:
-      - rabbitmq
-      - redis
-    volumes:
-      - images:/app/core/templates/images
-    networks:
-      net_con:
-
   pg_db:
     container_name: pg_db_pied_market
     image: postgres:16
@@ -65,6 +42,44 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
+
+  celery_worker:
+    container_name: celery_worker_pied_market
+    image: alxireinar/marketplace_pied_market
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue,file_queue
+    environment:
+      - DEPLOYED=1
+      - DOCKERIZED=1
+      - CELERY_WORKER=1
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    depends_on:
+      - rabbitmq
+      - redis
+      - pg_db
+    volumes:
+      - images:/app/core/templates/images
+    networks:
+      net_con:
+
+  celery_beat:
+    container_name: celery_beat_pied_market
+    image: alxireinar/marketplace_pied_market
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -B
+    environment:
+      - DEPLOYED=1
+      - DOCKERIZED=1
+      - CELERY_WORKER=1
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    depends_on:
+      - rabbitmq
+      - redis
+      - pg_db
+    volumes:
+      - images:/app/core/templates/images
+    networks:
+      net_con:
 
   smtp_service:
     image: rnwood/smtp4dev
@@ -92,7 +107,6 @@ services:
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
-    mem_limit: 3g
     volumes:
       - esdata01:/usr/share/elasticsearch/data
       - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
