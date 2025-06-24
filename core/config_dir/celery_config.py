@@ -75,12 +75,8 @@ celery_bg.conf.beat_schedule = {
         'task': 'core.bg_tasks.celery_processing.run_messages_cleaner',
         'schedule': crontab(day_of_week=4)
     },
-    # 's3_kharon': {
-    #     'task': 'core.bg_tasks.celery_processing.transfer_to_s3',
-    #     'schedule': crontab(minute=0, hour='*')
-    # },
     's3_kharon': {
         'task': 'core.bg_tasks.celery_processing.transfer_to_s3',
-        'schedule': crontab(minute='*/2')
+        'schedule': crontab(minute=0, hour='*')
     }
 }

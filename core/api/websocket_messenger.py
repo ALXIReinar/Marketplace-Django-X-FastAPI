@@ -163,7 +163,7 @@ async def absorb_binary(
         reply_id=file_hint.reply_id
     )
     saved_msg_json['file_name'] = uniq_id
-    log_event('Файл Сохранён!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
+    log_event('Файл Сохранён локально!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
 
@@ -223,10 +223,10 @@ async def save_to_bucket(
     ext = os.path.splitext(file_hint.file_name)[-1]
     db_file_name =f'users/chats/{uniq_id}{ext}'
     if file_obj.size <= env.bg_upload_file_size:
-        await s3.save_file(file_obj, db_file_name, heavy_file=False)
+        await s3.save_file(file_obj, db_file_name)
     else:
         try:
-            with open(f'{env.abs_path}/user_files_bg_dumps/users_chats_{uniq_id}{ext}', 'wb') as f:
+            with open(f'{env.abs_path}/{env.bg_users_files}/users_chats_{uniq_id}{ext}', 'wb') as f:
                 f.write(file_obj.file.read())
         except OSError as oe:
             log_event('Проблемы с ОС сервера | file: %s | Exception: %s', db_file_name, oe, level='CRITICAL')

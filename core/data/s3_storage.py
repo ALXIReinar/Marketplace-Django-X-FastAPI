@@ -1,6 +1,7 @@
 import os
 from typing import Annotated
 
+from botocore.exceptions import ClientError
 from fastapi import HTTPException
 from fastapi.params import Depends
 from starlette.datastructures import UploadFile
@@ -15,7 +16,7 @@ class S3StorageAsync:
         self.session = _cloud_session
 
 
-    async def save_file(self, uploaded_file, file_path: str, heavy_file: bool = False):
+    async def save_file(self, uploaded_file, file_path: str):
         log_event('Файл сохраняется в С3 | file: %s', file_path)
         if isinstance(uploaded_file, UploadFile):
             f = uploaded_file.file
@@ -38,10 +39,6 @@ class S3StorageAsync:
             raise HTTPException(status_code=504, detail={'success': False, 'message': 'Ошибка загрузки файла'})
         log_event('Записан Файл в S3 \033[35m(Уровень Облака)\033[0m | file: %s', file_path)
 
-        if heavy_file:
-            log_event('Удаление файла %s', file_path, level='WARNING')
-            os.remove(f'{env.abs_path}/user_files_bg_dumps/{file_path.replace("/", "_")}')
-            log_event('Файл Удалён! %s', file_path, level='WARNING')
 
     async def set_presigned_url(self, file_key: str, ttl: int = 3600):
         key = f'{env.cloud_storage}/{file_key}'
@@ -56,6 +53,18 @@ class S3StorageAsync:
         )
         log_event('Выдан юрл на s3-объект: %s', key)
         return presigned_url
+
+    async def ping_object(self, file_key: str, bucket_name: str):
+        try:
+            await self.session.head_object(Key=f'{env.cloud_storage}/{file_key}', Bucket=bucket_name)
+            log_event('Файл в S3, процесс удаления в ФС | %s', file_key, level='WARNING')
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                log_event('Файла нет в S3: %s', file_key)
+            else:
+                log_event('Произошло нечто иное, времени прошло: %s | file_key: %s | Exception: %s', file_key, e.response, level='CRITICAL')
+        return False
 
 
 async def set_async_cloud_session():

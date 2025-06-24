@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     abs_path: str = str(WORKDIR)
     local_storage: str = '/core/templates/images'
     cloud_storage: str = 'images'
+    bg_users_files: str = 'user_files_bg_dumps'
     bg_upload_file_size: int = 31_457_280 # 30MB
     delta_layout_msg: int = 20
 

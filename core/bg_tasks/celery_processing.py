@@ -1,13 +1,9 @@
-import os
-from time import sleep
-
 import requests
 from asyncpg import Record
 from pydantic import EmailStr
 
 from core.config_dir.celery_config import celery_bg, ext_prd_queue, large_prd_routing_key, mail_queue, mail_routing_key, \
     bg_link, file_queue, file_routing_key
-from core.config_dir.config import env
 from core.config_dir.logger import log_event
 from core.utils.anything import Events, hide_log_param
 
@@ -61,14 +57,4 @@ def run_messages_cleaner():
 
 @celery_bg.task()
 def transfer_to_s3():
-    log_event('Крона на перевод файлов в С3 из /user_files_bg_dumps', level='WARNING')
-    user_files = f'{env.abs_path}/user_files_bg_dumps'
-    qty_user_files = len(os.listdir(user_files))
-    if qty_user_files == 0:
-        log_event('Объекты для S3 не обнаружены', level='WARNING')
-        return
-    url_cron = f'{bg_link}/s3_upload/saving'
-    for file_key in os.listdir(user_files):
-        requests.put(url_cron, params={'file_path': file_key}).json()
-        sleep(0.1)
-    log_event('Загружено в s3 файлов: %s', qty_user_files, level='WARNING')
+    requests.put(f'{bg_link}/crons/s3_fs-manager').json()
