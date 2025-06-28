@@ -131,32 +131,35 @@ es_client = AsyncElasticsearch(**es_settings)
 
 
 "PostgreSql"
-db_host = env.pg_host
-db_port = env.pg_port
-passw = env.pg_password
-if env.cloud_db:
-    "БД-Облако"
-    db_host = env.pg_host_cl
-    db_port = env.pg_port_cl
-    passw = env.pg_password_cl
-elif env.deployed:
-    "Фулл докер-деплой"
-    db_host = env.pg_host_docker
-elif env.docker_db and env.celery_worker:
-    "БД в Докере и запускается Воркер"
-    db_host = env.pg_host_celery_worker_docker_db
-elif not env.cloud_db and env.celery_worker:
-    "Локальная БД и Воркер"
-    db_host = env.internal_host
-elif env.docker_db and not env.dockerized:
-    "БД в докере, Локалка подрубается"
-    db_port = env.pg_port_docker
-
+def get_host_port_password_DB():
+    db_host = env.pg_host
+    db_port = env.pg_port
+    passw = env.pg_password
+    if env.cloud_db:
+        "БД-Облако"
+        db_host = env.pg_host_cl
+        db_port = env.pg_port_cl
+        passw = env.pg_password_cl
+    elif env.deployed:
+        "Фулл докер-деплой"
+        db_host = env.pg_host_docker
+    elif env.docker_db and env.celery_worker:
+        "БД в Докере и запускается Воркер"
+        db_host = env.pg_host_celery_worker_docker_db
+    elif not env.cloud_db and env.celery_worker:
+        "Локальная БД и Воркер"
+        db_host = env.internal_host
+    elif env.docker_db and not env.dockerized:
+        "БД в докере, Локалка подрубается"
+        db_port = env.pg_port_docker
+    return dict(
+        password=passw,
+        host=db_host,
+        port=db_port,
+    )
 pool_settings = dict(
     user=env.pg_user,
-    password=passw,
-    host=db_host,
-    port=db_port,
+    **get_host_port_password_DB(),
     database=env.pg_db,
     command_timeout=60
 )

@@ -4,7 +4,10 @@ from kombu import Exchange, Queue
 from kombu.serialization import register
 
 from core.config_dir.config import env
+from core.utils.anything import create_bg_files_dir
 from core.utils.celery_serializer import json_loads, json_dumps
+
+create_bg_files_dir()
 
 register(
     'serialize_asyncpg_json',

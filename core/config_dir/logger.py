@@ -9,10 +9,9 @@ from starlette.requests import Request
 from starlette.websockets import WebSocket
 
 from core.config_dir.config import WORKDIR
-from core.utils.anything import create_log_dirs, Events, create_debug_log_dir
+from core.utils.anything import create_log_dirs, Events
 
 create_log_dirs()
-create_debug_log_dir()
 LOG_DIR = Path(WORKDIR) / 'logs'
 
 

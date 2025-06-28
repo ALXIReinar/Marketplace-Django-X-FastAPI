@@ -186,4 +186,3 @@ create_new_cert_p12_elastic/
 create_new_cert_p12_elastic/es_crt_util_certs/
 quick_docker_up/
 user_files_bg_dumps/
-.pytest_cache/

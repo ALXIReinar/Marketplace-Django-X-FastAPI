@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from core.config_dir.base_dependencies import PagenSearchDep
-from core.config_dir.config import get_env_vars, es_client
+from core.config_dir.config import es_client, env
 from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.schemas.product_schemas import SearchSchema
@@ -11,7 +11,7 @@ from core.utils.searching.index_settings import index_mapping, aliases, settings
 from core.utils.searching.search_ptn import looking
 
 router = APIRouter(prefix='/api/products/elastic', tags=[Tags.elastic_products])
-search_index =  get_env_vars().search_index
+search_index = env.search_index
 
 
 @router.put('/index_up/{index_name}', summary='Название индекса может быть произвольным, но не должно совпадать с Элиасом')
