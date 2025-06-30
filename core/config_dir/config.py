@@ -78,9 +78,10 @@ class Settings(BaseSettings):
     s3_root_cert_docker: str
 
     rabbitmq_user: str
-
-    celery_broker_url: str
-    celery_result_backend: str
+    rabbitmq_passw: str
+    rabbitmq_host: str
+    rabbitmq_host_docker: str
+    rabbitmq_port_docker: str
 
     smtp_host: str
     smtp_port: int
@@ -112,26 +113,28 @@ def get_env_vars():
 env = get_env_vars()
 
 "ElasticSearch"
-es_host = env.elastic_host
-es_settings = dict(
-    basic_auth=(env.elastic_user, env.elastic_password),
-    ca_certs=env.elastic_cert if not env.dockerized else env.elastic_cert_docker,
-    verify_certs=False
-)
-if env.dockerized:
-    es_host = env.elastic_host_docker if env.docker_es else env.internal_host
-es_link = f'https://{es_host}:{env.elastic_port}'
-es_settings['hosts'] = [es_link]
-if env.docker_es:
-    es_link = f'http://{es_host}:{env.elastic_port}'
-es_settings = dict(
-    hosts=[es_link]
-)
+def get_host_port_ES(env=env):
+    es_host = env.elastic_host
+    settings = dict(
+        basic_auth=(env.elastic_user, env.elastic_password),
+        ca_certs=env.elastic_cert if not env.dockerized else env.elastic_cert_docker,
+        verify_certs=False
+    )
+    if env.dockerized:
+        es_host = env.elastic_host_docker if env.docker_es else env.internal_host
+    es_link = f'https://{es_host}:{env.elastic_port}'
+    settings['hosts'] = [es_link]
+    if env.docker_es:
+        es_link = f'http://{es_host}:{env.elastic_port}'
+        settings = dict(
+            hosts=[es_link]
+        )
+    return settings
+es_settings = get_host_port_ES()
 es_client = AsyncElasticsearch(**es_settings)
 
-
 "PostgreSql"
-def get_host_port_password_DB():
+def get_host_port_password_DB(env=env):
     db_host = env.pg_host
     db_port = env.pg_port
     passw = env.pg_password
@@ -198,6 +201,30 @@ smtp = SMTP(
 )
 
 
+"RabbitMQ"
+def get_host_port_Rmq(env=env):
+    host = env.rabbitmq_host_docker if env.dockerized else env.rabbitmq_host
+    port = env.rabbitmq_port_docker
+    user, passw = env.rabbitmq_user, env.rabbitmq_passw
+    return dict(
+        host=host,
+        port=port,
+        user=user,
+        passw=passw
+    )
+rabbit_connective_pairs = get_host_port_Rmq()
+
+
+"Redis"
+def get_host_port_REDIS(env=env):
+    host = env.redis_host_docker if env.dockerized else env.redis_host
+    port = env.redis_port_docker if env.dockerized else env.redis_port
+    return dict(
+        host=host,
+        port=port
+    )
+redis_connective_pairs = get_host_port_REDIS()
+
+
 "Broadcast WebSocket"
-broadcast = Broadcast(f"redis://{env.redis_host}:{env.redis_port}" if not env.dockerized
-                      else f"redis://{env.redis_host_docker}:{env.redis_port_docker}")
+broadcast = Broadcast(f"redis://{redis_connective_pairs['host']}:{redis_connective_pairs['port']}")

@@ -3,7 +3,7 @@ from celery.schedules import crontab
 from kombu import Exchange, Queue
 from kombu.serialization import register
 
-from core.config_dir.config import env
+from core.config_dir.config import env, redis_connective_pairs, rabbit_connective_pairs
 from core.utils.anything import create_bg_files_dir
 from core.utils.celery_serializer import json_loads, json_dumps
 
@@ -17,15 +17,17 @@ register(
     content_encoding='utf-8'
 )
 
-uvi_host = env.uvicorn_host
-if env.deployed and env.celery_worker:
-    uvi_host = env.uvicorn_host_docker
-elif env.dockerized:
-    uvi_host = env.internal_host
+def get_host_port_bg_url(env=env):
+    uvi_host = env.uvicorn_host
+    if env.deployed and env.celery_worker:
+        uvi_host = env.uvicorn_host_docker
+    elif env.dockerized:
+        uvi_host = env.internal_host
+    return uvi_host
 
-bg_link = f'{env.transfer_protocol}://{uvi_host}:8000/api/bg_tasks'
-broker = env.celery_broker_url if env.dockerized else f"pyamqp://{env.rabbitmq_user}@localhost//"
-backend_result = env.celery_result_backend if env.dockerized else f"redis://localhost:{env.redis_port}/0"
+bg_link = f'{env.transfer_protocol}://{get_host_port_bg_url()}:8000/api/bg_tasks'
+broker = f"pyamqp://{rabbit_connective_pairs['user']}@{rabbit_connective_pairs['host']}//"
+backend_result = f"redis://{redis_connective_pairs['host']}:{redis_connective_pairs['port']}/0"
 
 "Методы обмена"
 ex_meth = 'ex_method'

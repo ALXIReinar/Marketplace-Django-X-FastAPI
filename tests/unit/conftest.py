@@ -1,8 +1,9 @@
+import os
+
 import pytest
 from fastapi import HTTPException
 
-from core.config_dir.config import env
-from core.config_dir.logger import log_event
+from core.config_dir.config import env, get_env_vars
 from core.schemas.chat_schema import ChatSaveFiles
 from contextlib import nullcontext as no_raises
 
@@ -42,3 +43,8 @@ def get_token_list(with_ttl: bool):
         archive = list(zip(token_list, ttl_list))
         return archive
     return token_list
+
+def replace_environment(vars_dict):
+    for variable, value in vars_dict.items():
+        os.environ[variable] = value
+    get_env_vars.cache_clear()

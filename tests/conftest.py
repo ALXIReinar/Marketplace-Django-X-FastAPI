@@ -1,6 +1,9 @@
 import os
 
 import pytest
+from httpx import AsyncClient, ASGITransport
+
+from core.config_dir.config import app, env
 
 '''
 
@@ -17,6 +20,13 @@ def setup_db():
     # db.flush_db()
     # log_event('БД для тестов Очищена!', level='WARNING')
 
+@pytest.fixture
+async def ac():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url=f'http://{env.uvicorn_host}:8000'
+    ) as async_client:
+        yield async_client
 
 
 "Options from CLI"
@@ -27,6 +37,6 @@ def pytest_addoption(parser):
         choices=('default', 'stress')
     )
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='session', autouse=True)
 def run_mode(request):
     return request.config.getoption('--run-mode')
