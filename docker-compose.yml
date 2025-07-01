@@ -7,6 +7,7 @@ services:
       - '6378:6379'
     networks:
       net_con:
+        - ipv4_address: 172.25.0.11
 
   rabbitmq:
     container_name: rabbitmq_pied_market
@@ -24,6 +25,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       net_con:
+        - ipv4_address: 172.25.0.12
 
   celery_worker:
     container_name: celery_worker_pied_market
@@ -46,6 +48,7 @@ services:
       - ./core/templates/images:/app/core/templates/images
     networks:
       net_con:
+        - ipv4_address: 172.25.0.14
 
   pg_db:
     container_name: pg_db_pied_market
@@ -60,7 +63,8 @@ services:
     ports:
       - '5431:5432'
     networks:
-      - net_con
+      net_con:
+        - ipv4_address: 172.25.0.13
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
@@ -77,6 +81,7 @@ services:
       - "3000:80"
     networks:
       net_con:
+        - ipv4_address: 172.25.0.15
 
 #  es01:
 #    depends_on:
@@ -99,6 +104,7 @@ services:
 #      - '9200:9200'
 #    networks:
 #      net_con:
+#        - ipv4_address: 172.25.0.16
 #
 #  kibana:
 #    depends_on:
@@ -111,11 +117,15 @@ services:
 #      - '5602:5601'
 #    networks:
 #      net_con:
+#        - ipv4_address: 172.25.0.17
 
 
 networks:
   net_con:
     driver: bridge
+    ipam:
+      config:
+        subnet: 172.25.0.0/16
 
 volumes:
   pg_data:

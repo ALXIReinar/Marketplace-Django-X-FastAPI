@@ -159,7 +159,7 @@ async def absorb_binary(
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
 
 
-@router.get('/get_file/local')
+@router.post('/get_file/local')
 async def get_binary_file(file_obj: WSFileSchema, request: Request):
     """
     Допускается только:

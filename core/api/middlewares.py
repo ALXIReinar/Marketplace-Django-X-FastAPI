@@ -11,7 +11,7 @@ from core.config_dir.logger import log_event
 from core.data.postgre import set_connection, PgSql
 from core.data.redis_storage import get_redis_connection
 from core.utils.anything import Events
-from core.config_dir.urls_middlewares import white_list_postfix, white_list_prefix_cookies, allowed_ips
+from core.config_dir.urls_middlewares import white_list_postfix, white_list_prefix_cookies, allowed_ips, trusted_proxies
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
@@ -46,13 +46,21 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
 class AuthUxMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         now = datetime.utcnow()
-        url = request.url.path
         request.state.user_id = 1
         request.state.session_id = '1'
-        if request.client.host in allowed_ips or any(tuple(url.endswith(postfix) for postfix in white_list_postfix)):
+
+        url = request.url.path
+
+        xff = request.headers.get('X-Forwarded-For')
+        ip = xff.split(',')[0].strip() if (
+            xff and request.client.host in trusted_proxies
+        ) else request.client.host
+
+        if ip in allowed_ips or any(tuple(url.endswith(postfix) for postfix in white_list_postfix)):
+            log_event(Events.white_list_url, request=request)
             return await call_next(request)
         if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)):
-            log_event(Events.white_list_url + " | cookies: %s", request.cookies.keys(), request=request, level='WARNING')
+            log_event(Events.white_list_url, request=request, level='WARNING')
             return await call_next(request)
 
 

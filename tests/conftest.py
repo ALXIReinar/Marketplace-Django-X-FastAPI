@@ -1,15 +1,34 @@
 import os
+from collections.abc import Callable
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
+from starlette.requests import Request
 
+from core.api import main_router
+from core.bg_tasks import bg_router
 from core.config_dir.config import app, env
 
-'''
 
-FOR ALL FIXTURES!!!(and options)
+app.user_middleware.clear()
 
-'''
+@app.middleware('http')
+async def auth_ux_test_middleware(request: Request, call_next: Callable):
+    ...
+    return await call_next(request)
+
+app.include_router(main_router)
+app.include_router(bg_router)
+
+
+@pytest_asyncio.fixture
+async def ac():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url=f'http://{env.uvicorn_host}:8000'
+    ) as async_client:
+        yield async_client
 
 @pytest.fixture(scope='session')
 def setup_db():
@@ -20,13 +39,6 @@ def setup_db():
     # db.flush_db()
     # log_event('БД для тестов Очищена!', level='WARNING')
 
-@pytest.fixture
-async def ac():
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url=f'http://{env.uvicorn_host}:8000'
-    ) as async_client:
-        yield async_client
 
 
 "Options from CLI"
