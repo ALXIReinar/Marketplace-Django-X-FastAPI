@@ -6,7 +6,7 @@ from .regular_crons import router as cron_router
 from .cloud_file_downloader import router as file_manager_router
 from ..utils.anything import Tags
 
-bg_router = APIRouter(prefix='/api/bg_tasks', tags=[Tags.celery_bg])
+bg_router = APIRouter(prefix='/api', tags=[Tags.celery_bg])
 
 bg_router.include_router(email_router)
 bg_router.include_router(ext_router)

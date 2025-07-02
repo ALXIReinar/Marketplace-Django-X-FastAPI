@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 WORKDIR = Path(__file__).resolve().parent.parent.parent
 
-app = FastAPI()
+app = FastAPI(docs_url='/api/docs', openapi_url='/api/openapi.json')
 encryption = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 

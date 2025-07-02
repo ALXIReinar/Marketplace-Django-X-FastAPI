@@ -5,7 +5,7 @@ from core.config_dir.config import env
 from core.config_dir.logger import log_event
 from core.data.s3_storage import S3Dep
 
-router = APIRouter(prefix='/s3_upload')
+router = APIRouter(prefix='/private/bg_tasks/s3_upload')
 
 
 

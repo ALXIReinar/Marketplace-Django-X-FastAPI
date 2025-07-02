@@ -11,7 +11,8 @@ from core.config_dir.logger import log_event
 from core.data.postgre import set_connection, PgSql
 from core.data.redis_storage import get_redis_connection
 from core.utils.anything import Events
-from core.config_dir.urls_middlewares import white_list_postfix, white_list_prefix_cookies, allowed_ips, trusted_proxies
+from core.config_dir.urls_middlewares import white_list_prefix_NO_COOKIES, allowed_ips
+from core.utils.processing_data.ip_taker import get_client_ip
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
@@ -50,19 +51,16 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
         request.state.session_id = '1'
 
         url = request.url.path
+        ip = get_client_ip(request)
 
-        xff = request.headers.get('X-Forwarded-For')
-        ip = xff.split(',')[0].strip() if (
-            xff and request.client.host in trusted_proxies
-        ) else request.client.host
-
-        if ip in allowed_ips or any(tuple(url.endswith(postfix) for postfix in white_list_postfix)):
+        "Веб-адреса или запросы Сервера"
+        if not url.startswith('/api') or ip in allowed_ips:
             log_event(Events.white_list_url, request=request)
             return await call_next(request)
-        if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)):
+        "Не нуждаются в авторизации, Если нет кук"
+        if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
             log_event(Events.white_list_url, request=request, level='WARNING')
             return await call_next(request)
-
 
 
         encoded_access_token = request.cookies.get('access_token')
@@ -72,8 +70,6 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
         if datetime.utcfromtimestamp(access_token['exp']) < now:
             # аксес_токен ИСТЁК
-
-
             "процесс выпуска токена"
             pool = await set_connection()
             async with pool.acquire() as conn:

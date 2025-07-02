@@ -25,7 +25,7 @@ def get_host_port_bg_url(env=env):
         uvi_host = env.internal_host
     return uvi_host
 
-bg_link = f'{env.transfer_protocol}://{get_host_port_bg_url()}:8000/api/bg_tasks'
+bg_link = f'{env.transfer_protocol}://{get_host_port_bg_url()}:8000/api'
 broker = f"pyamqp://{rabbit_connective_pairs['user']}@{rabbit_connective_pairs['host']}//"
 backend_result = f"redis://{redis_connective_pairs['host']}:{redis_connective_pairs['port']}/0"
 

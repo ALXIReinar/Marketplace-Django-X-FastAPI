@@ -10,11 +10,11 @@ from core.utils.searching.elastic_utils import gener_docs
 from core.utils.searching.index_settings import index_mapping, aliases, settings
 from core.utils.searching.search_ptn import looking
 
-router = APIRouter(prefix='/api/products/elastic', tags=[Tags.elastic_products])
+router = APIRouter(tags=[Tags.elastic_products])
 search_index = env.search_index
 
 
-@router.put('/index_up/{index_name}', summary='Название индекса может быть произвольным, но не должно совпадать с Элиасом')
+@router.put('/api/elastic/index_up/{index_name}', summary='Название индекса может быть произвольным, но не должно совпадать с Элиасом')
 async def put_index(index_name: str):
     async with es_client as aioes:
         await aioes.indices.create(index=index_name,
@@ -24,7 +24,7 @@ async def put_index(index_name: str):
     return {'success': True, 'message': f'Индекс {index_name} поднят, прожми бульк-вставку!'}
 
 
-@router.post('/bulk_docs')
+@router.post('/api/elastic/bulk_docs')
 async def add_docs_in_index(
         db: PgSqlDep,
 ):
@@ -37,7 +37,7 @@ async def add_docs_in_index(
     return {'success': True, 'message': 'Чекни эластик!'}
 
 
-@router.post('/search')
+@router.post('/api/products/elastic/search')
 async def search(search_string: SearchSchema, db: PgSqlDep, pagen: PagenSearchDep):
     """
     в будущем подрубить редис, если будет находить < 40 записей, чтобы быстро фильтровать

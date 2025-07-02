@@ -1,13 +1,9 @@
-apis_dont_need_auth = {
-    '/',
-    '/api/users/sign_up',
-    '/api/users/login',
-
-}
-
-white_list_postfix = ['.html', '.css', '.png', '.jpg', '.ico', '.json']
-
-white_list_prefix_cookies = ['/products', '/favorites', '/orders', '/login', '/sign_up']
+white_list_prefix_NO_COOKIES = [
+    '/api/products',
+    '/api/public',
+    '/api/favorites',
+    '/api/orders',
+]
 
 allowed_ips = {
     '127.0.0.1',
