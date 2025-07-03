@@ -12,19 +12,53 @@ from core.api import main_router
 from core.bg_tasks import bg_router
 from core.config_dir.config import app, env, pool_settings
 from core.config_dir.logger import log_event
-from core.config_dir.urls_middlewares import trusted_proxies, allowed_ips, white_list_prefix_NO_COOKIES
-from core.data.postgre import PgSql
+from core.config_dir.urls_middlewares import allowed_ips, white_list_prefix_NO_COOKIES
 from core.utils.anything import Events
+from core.utils.processing_data.ip_taker import get_client_ip
 
-app.user_middleware.clear()
+
+db_tables = [
+    'addresses_prd_points',
+    'addresses_users',
+    'categories',
+    'chat_messages',
+    'chat_users',
+    'chats',
+    'comments',
+    'details_prdts',
+    'favorite',
+    'images_prdts',
+    'media_comments',
+    'ordered_products',
+    'orders',
+    'prd_headers',
+    'prd_stats',
+    'prd_subheaders',
+    'preferences_users',
+    'products',
+    'readed_mes',
+    'sellers',
+    'sessions_users',
+    'shop_cart',
+    'users',
+]
+
+postgres_pool = None
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def pg_db():
+    assert os.getenv('MODE', 'mode') == 'Test'
+
+    global postgres_pool
+    if postgres_pool is None:
+        log_event('Создаём пул с БД для тестов', level='WARNING')
+        postgres_pool = await create_pool(**pool_settings, max_size=30)
+    return postgres_pool
+
 
 @app.middleware('http')
 async def auth_ux_test_middleware(request: Request, call_next: Callable):
     url = request.url.path
-    xff = request.headers.get('X-Forwarded-For')
-    ip = xff.split(',')[0].strip() if (
-            xff and request.client.host in trusted_proxies
-    ) else request.client.host
+    ip = get_client_ip(request)
 
     "Веб-адреса или запросы Сервера"
     if not url.startswith('/api') or ip in allowed_ips:
@@ -40,12 +74,44 @@ async def auth_ux_test_middleware(request: Request, call_next: Callable):
 
     return JSONResponse(status_code=401, content={'message': 'Нужна авторизация'})
 
+@pytest_asyncio.fixture
+async def auth_ac():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url=f'http://{env.uvicorn_host}:8000'
+    ) as auth_async_client:
+        yield auth_async_client
+
+app.user_middleware.clear()
+
+@app.middleware('http')
+async def integrate_test_auth_middleware(request: Request, call_next: Callable):
+    url = request.url.path
+    ip = get_client_ip(request)
+
+    "Веб-адреса или запросы Сервера"
+    if not url.startswith('/api') or ip in allowed_ips:
+        log_event(Events.white_list_url, request=request)
+        return await call_next(request)
+    "Не нуждаются в авторизации, Если нет кук"
+    if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
+        log_event(Events.white_list_url, request=request, level='WARNING')
+        return await call_next(request)
+    "Только если есть aT и rT"
+    aT, rT = request.cookies.get('access_token'), request.cookies.get('refresh_token')
+    if aT and rT:
+        request.state.user_id = int(aT)
+        request.state.session_id = rT
+        return await call_next(request)
+    return JSONResponse(status_code=401, content={'message': 'UnAuthorized'})
+
+
 app.include_router(main_router)
 app.include_router(bg_router)
 
-
 @pytest_asyncio.fixture
 async def ac():
+    app.state.pg_pool = await create_pool(**pool_settings)
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url=f'http://{env.uvicorn_host}:8000'
@@ -53,33 +119,47 @@ async def ac():
         yield async_client
 
 @pytest_asyncio.fixture
-async def ac_methods(ac):
+async def auth_ac_methods(auth_ac):
     ac_methods = {
-        'POST': ac.post,
-        'GET': ac.get,
-        'DELETE': ac.delete,
-        'PUT': ac.put
+        'POST': auth_ac.post,
+        'GET': auth_ac.get,
+        'DELETE': auth_ac.delete,
+        'PUT': auth_ac.put
     }
     return ac_methods
 
 
-postgres_pool = None
-@pytest_asyncio.fixture(scope='session')
-async def pg_pool():
-    assert os.getenv('MODE','mode') == 'Test'
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def prepare_user_seller_product(pg_db):
+    setup_queries = [
+        "insert into public.users (name, email, passw) values ('admin_user', 'test_plug@gmail.com', 'plugpassw'),('test_user1', 'test_user1@gmail.com', 'userpassw'), ('test_user2', 'test_user2@gmail.com', 'userpassw')",
+        "insert into addresses_prd_points (address_text, work_time_start, work_time_end) values ('Небылинск, ул. Колотушкина,  д.44', '09:00.00', '21:00.00')",
+        "insert into addresses_users (user_id, prd_point_id) values(2, 1), (3, 1)",
 
-    global postgres_pool
-    if postgres_pool is None:
-        log_event('Создаём пул с БД для тестов', level='WARNING')
-        postgres_pool = await create_pool(**pool_settings)
-    return postgres_pool
+        "insert into sellers (title_shop, email, passw) values('test_shop', 'test_seller@gmail.com', 'sellerpassw')",
+        "insert into categories (designation) values('Электроника'), ('Одежда')",
+        "insert into products (seller_id, category_id, prd_name, cost, remain) values(1,1, 'test_pc1', 100, 1), (1,1, 'test_pc2', 200, 0), (1,2, 'test_clothe1', 300, 1), (1,2, 'test_clothe2', 400, 0)",
+        """insert into images_prdts (prd_id, path, position, title_img) 
+        values (1, '/images/products/1_1.png', 1, false), (1, '/images/products/1_2.png', 2, true), (1, '/images/products/1_3.png', 3, false), 
+        (2, '/images/products/2_1.png', 1, true), (2, '/images/products/2_2.png', 2, false), (2, '/images/products/1_3.png', 3, false),
+        (3, '/images/products/3_1.png', 1, false), (3, '/images/products/3_2.png', 2, true), 
+        (4, '/images/products/4_1.png', 1, true), (4, '/images/products/4_2.png', 2, false)
+        """,
 
-@pytest_asyncio.fixture
-async def db_conn(pg_pool):
-    async with pg_pool.acquire() as conn:
-        async with conn.transaction():
-            yield PgSql(conn)
+        "insert into orders (user_id, total_cost, address_id, status) values(2, 300, 1, 'Завершённые'), (3, 600, 1, 'Актуальные')",
+        """insert into ordered_products (order_id, prd_id, fixed_cost, qty, delivery_date_start, delivery_date_end, delivery_company, track_num, prd_status)
+         values (1, 1, 100, 1, '2025-05-05','2025-06-20', 'aboba delivery', 'XY1', 'Получен'), (1, 3, 300, 1, '2025-05-05','2025-06-20', 'pego delivery', 'XZ2', 'Получен'),
+          (2, 2, 200, 1, '2025-05-05','2025-06-20', 'pego delivery', 'XC3', 'Собираем заказ'), (2, 4, 400, 1, '2025-05-05','2025-06-20', 'aboba delivery', 'XA4', 'Получен')""",
 
+    ]
+    async with pg_db.acquire() as conn:
+        await conn.execute(f"TRUNCATE TABLE {','.join(db_tables)} RESTART IDENTITY CASCADE")
+        for query in setup_queries:
+            await conn.execute(query)
+
+@pytest.fixture
+def xff_ip():
+    return {'X-Forwarded-For': '111.0.111.0, '}
 
 "Options from CLI"
 def pytest_addoption(parser):

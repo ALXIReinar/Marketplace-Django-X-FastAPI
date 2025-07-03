@@ -110,9 +110,8 @@ class ProductsQueries:
     ):
         order_statuses = {False: "Завершённые", True: "Актуальные"}
         query = '''
-        SELECT o.id, o.created_at, o_p.prd_id, o_p.fixed_cost, o_p.prd_status, o_p.delivery_date_end, img.path, COUNT(c.id) FROM orders o
+        SELECT o.id, o.created_at, o_p.prd_id, o_p.fixed_cost, o_p.prd_status, o_p.delivery_date_end, img.path FROM orders o
         JOIN ordered_products o_p ON o_p.order_id = o.id
-        LEFT JOIN comments c ON c.prd_id = o_p.prd_id
         JOIN images_prdts img ON img.prd_id = o_p.prd_id AND img.title_img = true
         WHERE o.user_id = $1 AND o.status = $2
         GROUP BY o.id, o.created_at, o_p.prd_id, o_p.fixed_cost, o_p.prd_status, o_p.delivery_date_end, img.path

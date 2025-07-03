@@ -1,21 +1,5 @@
 from random import randint
 
-import pytest_asyncio
-
-from core.config_dir.logger import log_event
-
-
-@pytest_asyncio.fixture(scope='session')
-async def prepare_orders_favorites(db_conn):
-    setup_queries = [
-        "insert into public.users (name, email, passw) values ('test_user', 'test@gmail.com', 'testpassw')",
-        "insert into addresses_prd_points (address_text, work_time_start, work_time_end) values ('Казань, ул. Габишева,  д.4', '09:00.00', '21:00.00')",
-        "insert into addresses_users (user_id, prd_point_id) values(10, 1)",
-    ]
-    for query in setup_queries:
-        await db_conn.conn.execute(query)
-
-
 
 def get_urls_plan(cookies: bool):
     arr = [
