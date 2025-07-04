@@ -29,7 +29,7 @@ class TestAuthUXMiddleware:
         res = await auth_ac_methods[method](endpoint, headers={'X-Forwarded-For': ip}, cookies=cookies)
         assert res.status_code == waited_code
 
-@pytest.mark.skipif('config.getoption("--run-mode") == "default"')
+@pytest.mark.skipif('config.getoption("--run-mode") != "stress"')
 def test_get_actual_endpoint_set():
     get_urls_plan(cookies=False)
     assert 1 == 1

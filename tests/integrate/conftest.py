@@ -1,5 +1,19 @@
 from random import randint
 
+import pytest_asyncio
+from elasticsearch import AsyncElasticsearch
+
+from core.config_dir.config import get_host_port_ES
+from core.config_dir.logger import log_event
+
+
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def prepare_elasticsearch(run_mode):
+    if run_mode == 'elastic':
+        yield
+        aioes = AsyncElasticsearch(**get_host_port_ES())
+        await aioes.indices.delete(index='test_index1')
+        await aioes.close()
 
 def get_urls_plan(cookies: bool):
     arr = [
@@ -40,7 +54,6 @@ def get_urls_plan(cookies: bool):
         ('POST', '/api/public/bg_tasks/ext_prd/lvl2', '197.167.14.250, '),
         ('DELETE', '/api/server/crons/delete_chat-messages', '98.9.78.203, '),
         ('GET', '/api/favorites/?limit=20&offset=0', '227.231.82.57, '),
-        ('POST', '/api/elastic/bulk_docs', '181.232.112.36, '),
         ('PUT', '/api/chats/commit_msg', '88.64.253.76, '),
         ('GET', '/api/chats/?limit=30&offset=0', '140.44.124.50, '),
         ('POST', '/api/private/users/logout', '135.237.117.174, ')

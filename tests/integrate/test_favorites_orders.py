@@ -9,7 +9,7 @@ class TestOrders:
         'cookies_vals, counters',
         [
             (('2', 'test_session1'), (0, 2, 2)),
-            (('3', 'test_session2'), (2, 0, 1)),
+            (('3', 'test_session2'), (1, 1, 1)),
         ]
     )
     @pytest.mark.asyncio
@@ -26,10 +26,10 @@ class TestOrders:
     @pytest.mark.parametrize(
         'tab, cookies_vals, len_waited_json',
         [
-            (True, ('2', 'test_session1'), 0),
-            (False, ('2', 'test_session1'), 2),
-            (False, ('3', 'test_session2'), 0),
-            (True, ('3', 'test_session2'), 2),
+            (True, ('2', 'test_session1'), 2),
+            (False, ('2', 'test_session1'), 0),
+            (True, ('3', 'test_session2'), 1),
+            (False, ('3', 'test_session2'), 1),
         ]
     )
     @pytest.mark.asyncio
@@ -57,10 +57,24 @@ class TestOrders:
             cookies={'access_token': cookies_vals[0], 'refresh_token': cookies_vals[1]},
             params={'limit': 40, 'offset': 0}
         )
-        log_event(f'{res.json()}', level='DEBUG')
         assert len(res.json()['purchased_products']) == waited_len_json
 
 
 @pytest.mark.usefixtures('ac')
-class TestFavorites:
-    ...
+class TestFavorite:
+    @pytest.mark.parametrize(
+        'cookies_vals, waited_len_json',
+        [
+            (('2', 'test_session1'), 4),
+            (('3', 'test_session2'), 0),
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_layout_favorite(self, ac, xff_ip, cookies_vals, waited_len_json):
+        res = await ac.get(
+            '/api/favorites/',
+            cookies={'access_token': cookies_vals[0], 'refresh_token': cookies_vals[1]},
+            headers=xff_ip,
+            params={'limit': 20, 'offset': 0}
+        )
+        assert len(res.json()['favorite_products']) == waited_len_json

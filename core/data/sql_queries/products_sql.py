@@ -2,8 +2,6 @@ from collections import namedtuple
 
 from asyncpg import Connection
 
-from core.utils.anything import copy_query_PRODUCTS_BY_ID
-
 
 class ProductsQueries:
     def __init__(self, conn: Connection):
@@ -88,12 +86,12 @@ class ProductsQueries:
     async def orders_counters(self, user_id: int):
         query = '''
         SELECT
-            (SELECT COUNT(o_p.prd_id) FROM orders o 
-            JOIN ordered_products o_p ON o_p.order_id = o.id AND o.status = 'Актуальные'
-            WHERE user_id = $1) AS actual_count,
-            (SELECT COUNT(o_p.prd_id) FROM orders o 
-            JOIN ordered_products o_p ON o_p.order_id = o.id AND o.status = 'Завершённые'
-            WHERE user_id = $1) AS complete_count,
+            (SELECT COUNT(o_p.prd_id) FROM orders o
+            JOIN ordered_products o_p ON o_p.order_id = o.id AND o.user_id = $1
+            WHERE o_p.prd_status NOT IN ('Получен', 'Отменён')) AS actual_count,
+            (SELECT COUNT(o_p.prd_id) FROM orders o
+            JOIN ordered_products o_p ON o_p.order_id = o.id AND o.user_id = $1
+            WHERE o_p.prd_status IN ('Получен', 'Отменён')) AS complete_count,
             (SELECT COUNT(DISTINCT o_p.prd_id) FROM orders o
             JOIN ordered_products o_p ON o_p.order_id = o.id
             WHERE o_p.prd_status = 'Получен' AND o.user_id = $1) AS purchase_count
@@ -108,24 +106,29 @@ class ProductsQueries:
             limit: int,
             offset: int
     ):
-        order_statuses = {False: "Завершённые", True: "Актуальные"}
+        condition = '' if status else 'NOT'
         query = '''
         SELECT o.id, o.created_at, o_p.prd_id, o_p.fixed_cost, o_p.prd_status, o_p.delivery_date_end, img.path FROM orders o
-        JOIN ordered_products o_p ON o_p.order_id = o.id
+        JOIN ordered_products o_p ON o_p.order_id = o.id AND o.user_id = $1
         JOIN images_prdts img ON img.prd_id = o_p.prd_id AND img.title_img = true
-        WHERE o.user_id = $1 AND o.status = $2
+        WHERE o_p.prd_status {} IN ('Получен', 'Отменён')
         GROUP BY o.id, o.created_at, o_p.prd_id, o_p.fixed_cost, o_p.prd_status, o_p.delivery_date_end, img.path
-        LIMIT $3 OFFSET $4
+        LIMIT $2 OFFSET $3
         '''
-        res = await self.conn.fetch(query, user_id, order_statuses[status], limit, offset)
+        res = await self.conn.fetch(query.format(condition), user_id, limit, offset)
         return res
 
     async def purchased_prds(self, user_id: int, limit: int, offset: int):
         query = '''
-        SELECT DISTINCT o_p.prd_id FROM orders o
-        JOIN ordered_products o_p ON o_p.order_id = o.id
-        WHERE o_p.prd_status = 'Получен' AND o.user_id = $1
+        SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days, COUNT(c.id) AS count_coms, ROUND(AVG(c.rate), 1) AS avg_rate FROM products p
+        LEFT JOIN comments c ON c.prd_id = p.id
+        JOIN images_prdts img ON img.prd_id = p.id AND img.title_img = true
+        JOIN ordered_products o_p ON o_p.prd_id = p.id
+        JOIN details_prdts d_p ON d_p.prd_id = p.id
+        JOIN orders o ON o.id = o_p.order_id
+        WHERE o.user_id = $1 AND o_p.prd_status = 'Получен'
+        GROUP BY p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days
         LIMIT $2 OFFSET $3
         '''
-        products = await self.conn.fetch(copy_query_PRODUCTS_BY_ID.format(query), user_id, limit, offset)
+        products = await self.conn.fetch(query, user_id, limit, offset)
         return products

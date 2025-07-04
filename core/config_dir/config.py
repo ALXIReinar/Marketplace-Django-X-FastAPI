@@ -131,7 +131,14 @@ def get_host_port_ES(env=env):
         )
     return settings
 es_settings = get_host_port_ES()
-es_client = AsyncElasticsearch(**es_settings)
+
+async def get_elastic_client():
+    es_client = AsyncElasticsearch(**es_settings)
+    try:
+        yield es_client
+    finally:
+        await es_client.close()
+
 
 "PostgreSql"
 def get_host_port_password_DB(env=env):

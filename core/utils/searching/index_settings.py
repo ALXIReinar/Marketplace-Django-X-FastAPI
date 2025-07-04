@@ -1,7 +1,7 @@
 from core.config_dir.config import env
 
 aliases = {
-    "products_index_alias": {}
+    env.search_index: {}
 }
 
 settings = {

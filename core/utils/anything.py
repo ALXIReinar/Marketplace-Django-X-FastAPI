@@ -114,13 +114,3 @@ def create_log_dirs():
 def create_bg_files_dir():
     BG_FILES_DIR = Path('user_files_bg_dumps')
     BG_FILES_DIR.mkdir(exist_ok=True)
-
-copy_query_PRODUCTS_BY_ID = '''
-SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days, COUNT(c.id) AS count_coms, ROUND(AVG(c.rate), 1) AS avg_rate FROM products p
-LEFT JOIN comments c ON c.prd_id = p.id
-JOIN images_prdts img ON img.prd_id = p.id AND img.title_img = true
-JOIN details_prdts d_p ON d_p.prd_id = p.id 
-WHERE p.id IN ({})
-AND p.remain > 0
-GROUP BY p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days
-'''
