@@ -1,6 +1,5 @@
 import pytest
 
-from core.config_dir.logger import log_event
 from tests.integrate.conftest import get_urls_plan
 
 @pytest.mark.usefixtures('auth_ac', 'auth_ac_methods')
@@ -12,7 +11,6 @@ class TestAuthUXMiddleware:
     @pytest.mark.asyncio
     async def test_auth_control_wo(self, auth_ac_methods, method, endpoint, ip, waited_code):
         res = await auth_ac_methods[method](endpoint, headers={'X-Forwarded-For': ip})
-        log_event(f'{res}', level='DEBUG')
         assert res.status_code == waited_code
 
 

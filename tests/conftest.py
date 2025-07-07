@@ -1,24 +1,24 @@
 import os
+import subprocess
+import time
 from collections.abc import Callable
 
 import pytest
 import pytest_asyncio
 from asyncpg import create_pool
-from fastapi import FastAPI
-from httpx import AsyncClient, ASGITransport
+from httpx import AsyncClient
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from core.api import main_router
-from core.bg_tasks import bg_router
-from core.config_dir.config import env, pool_settings
+from core.config_dir.config import pool_settings, get_uvicorn_host
 from core.config_dir.logger import log_event
 from core.config_dir.urls_middlewares import allowed_ips, white_list_prefix_NO_COOKIES
 from core.utils.anything import Events
+from core.utils.ping_test_server import wait_conn
 from core.utils.processing_data.ip_taker import get_client_ip
 
-app = FastAPI()
-auth_app = FastAPI()
+
 
 db_tables = [
     'addresses_prd_points',
@@ -49,8 +49,7 @@ db_tables = [
 postgres_pool = None
 @pytest_asyncio.fixture(scope='session', autouse=True)
 async def pg_db():
-    assert os.getenv('MODE', 'mode') == 'Test'
-
+    assert os.getenv('MODE') == 'Test'
     global postgres_pool
     if postgres_pool is None:
         log_event('Создаём пул с БД для тестов', level='WARNING')
@@ -58,84 +57,52 @@ async def pg_db():
     return postgres_pool
 
 
-@auth_app.middleware('http')
-async def auth_ux_test_middleware(request: Request, call_next: Callable):
-    url = request.url.path
-    ip = get_client_ip(request)
+class SimpleAuthMiddlewareTest(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Callable):
+        url = request.url.path
+        ip = get_client_ip(request)
 
-    "Веб-адреса или запросы Сервера"
-    if not url.startswith('/api') or ip in allowed_ips:
-        log_event(Events.white_list_url, request=request)
-        return JSONResponse(status_code=200, content={'message': 'вайт лист'})
-    "Не нуждаются в авторизации, Если нет кук"
-    if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
-        log_event(Events.white_list_url, request=request, level='WARNING')
-        return JSONResponse(status_code=200, content={'message': 'вайт лист'})
-    "Только если есть aT и rT"
-    if request.cookies.get('access_token') and request.cookies.get('refresh_token'):
-        return JSONResponse(status_code=200, content={'message': 'Процесс подтверждения авторизации'})
-
-    return JSONResponse(status_code=401, content={'message': 'Нужна авторизация'})
-
-app.include_router(main_router)
-app.include_router(bg_router)
-
-auth_app.include_router(bg_router)
-auth_app.include_router(bg_router)
-
-@pytest_asyncio.fixture
-async def auth_ac():
-    async with AsyncClient(
-        transport=ASGITransport(app=auth_app),
-        base_url=f'http://{env.uvicorn_host}:8000'
-    ) as auth_async_client:
-        yield auth_async_client
+        "Веб-адреса или запросы Сервера"
+        if not url.startswith('/api') or ip in allowed_ips:
+            log_event(Events.white_list_url, request=request)
+            return await call_next(request)
+        "Не нуждаются в авторизации, Если нет кук"
+        if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
+            log_event(Events.white_list_url, request=request, level='WARNING')
+            return await call_next(request)
+        "Только если есть aT и rT"
+        aT, rT = request.cookies.get('access_token'), request.cookies.get('refresh_token')
+        if aT and rT:
+            request.state.user_id = int(aT)
+            request.state.session_id = rT
+            return await call_next(request)
+        return JSONResponse(status_code=401, content={'message': 'UnAuthorized'})
 
 
-@app.middleware('http')
-async def integrate_test_auth_middleware(request: Request, call_next: Callable):
-    url = request.url.path
-    ip = get_client_ip(request)
+@pytest.fixture(scope='session')
+def uvicorn_test_server():
+    assert os.getenv('MODE') == 'Test'
+    os.environ['PYTHONUTF8'] = '1'
 
-    "Веб-адреса или запросы Сервера"
-    if not url.startswith('/api') or ip in allowed_ips:
-        log_event(Events.white_list_url, request=request)
-        return await call_next(request)
-    "Не нуждаются в авторизации, Если нет кук"
-    if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
-        log_event(Events.white_list_url, request=request, level='WARNING')
-        return await call_next(request)
-    "Только если есть aT и rT"
-    aT, rT = request.cookies.get('access_token'), request.cookies.get('refresh_token')
-    if aT and rT:
-        request.state.user_id = int(aT)
-        request.state.session_id = rT
-        return await call_next(request)
-    return JSONResponse(status_code=401, content={'message': 'UnAuthorized'})
+    host = get_uvicorn_host()
+    port = '8000'
 
+    proccess = subprocess.Popen([
+        'uvicorn',
+        'core.test_main:test_app',
+        '--host', host,
+        '--port', port
+    ])
+    wait_conn(host, port)
 
-@pytest_asyncio.fixture(scope='session')
-async def app_with_db(pg_db):
-    app.state.pg_pool = pg_db
-    yield app
+    yield
+    proccess.terminate()
+    proccess.wait()
 
 @pytest_asyncio.fixture
-async def ac(app_with_db):
-    async with AsyncClient(
-        transport=ASGITransport(app=app_with_db),
-        base_url=f'http://{env.uvicorn_host}:8000'
-    ) as async_client:
+async def ac(uvicorn_test_server):
+    async with AsyncClient(base_url=f'http://{get_uvicorn_host()}:8000') as async_client:
         yield async_client
-
-@pytest_asyncio.fixture
-async def auth_ac_methods(auth_ac):
-    ac_methods = {
-        'POST': auth_ac.post,
-        'GET': auth_ac.get,
-        'DELETE': auth_ac.delete,
-        'PUT': auth_ac.put
-    }
-    return ac_methods
 
 
 @pytest_asyncio.fixture(scope='session', autouse=True)
@@ -177,7 +144,7 @@ async def prepare_user_seller_product(pg_db):
 
 @pytest.fixture
 def xff_ip():
-    return {'X-Forwarded-For': '111.0.111.0, '}
+    return {'X-Forwarded-For': '111.0.111.0, 127.0.0.1'}
 
 "Options from CLI"
 def pytest_addoption(parser):

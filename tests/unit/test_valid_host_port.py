@@ -1,8 +1,7 @@
 import pytest
 
-from core.config_dir.celery_config import get_host_port_bg_url
 from core.config_dir.config import get_host_port_password_DB, env, get_env_vars, get_host_port_ES, get_host_port_REDIS, \
-    get_host_port_Rmq
+    get_host_port_Rmq, get_uvicorn_host
 from tests.unit.conftest import replace_environment
 
 
@@ -75,7 +74,7 @@ class TestConnectivePairs:
     ])
     def test_bg_url_pairs(self, env_pack, waited_vals):
         replace_environment(env_pack)
-        real_values = get_host_port_bg_url(get_env_vars())
+        real_values = get_uvicorn_host(get_env_vars())
         assert real_values == waited_vals
 
     @pytest.mark.parametrize(

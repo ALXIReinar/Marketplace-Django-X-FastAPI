@@ -7,7 +7,6 @@ from pathlib import Path
 
 from botocore.config import Config
 from elasticsearch import AsyncElasticsearch
-from fastapi import FastAPI
 from aiobotocore.session import get_session as async_get_session
 from aiosmtplib import SMTP
 from broadcaster import Broadcast
@@ -19,7 +18,6 @@ from pydantic import BaseModel
 
 WORKDIR = Path(__file__).resolve().parent.parent.parent
 
-app = FastAPI(docs_url='/api/docs', openapi_url='/api/openapi.json')
 encryption = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
@@ -111,6 +109,16 @@ class Settings(BaseSettings):
 def get_env_vars():
     return Settings()
 env = get_env_vars()
+
+"Uvicorn"
+def get_uvicorn_host(env=env):
+    uvi_host = env.uvicorn_host
+    if env.deployed and env.celery_worker:
+        uvi_host = env.uvicorn_host_docker
+    elif env.dockerized:
+        uvi_host = env.internal_host
+    return uvi_host
+
 
 "ElasticSearch"
 def get_host_port_ES(env=env):

@@ -1,19 +1,75 @@
-from random import randint
+from contextlib import asynccontextmanager
+from typing import Callable
 
 import pytest_asyncio
 from elasticsearch import AsyncElasticsearch
+from fastapi import FastAPI
+from httpx import AsyncClient, ASGITransport
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
-from core.config_dir.config import get_host_port_ES
+from core.api import main_router
+from core.bg_tasks import bg_router
+from core.config_dir.config import get_host_port_ES, env
 from core.config_dir.logger import log_event
+from core.config_dir.urls_middlewares import allowed_ips, white_list_prefix_NO_COOKIES
+from core.utils.anything import Events
+from core.utils.processing_data.ip_taker import get_client_ip
 
+
+@asynccontextmanager
+async def lifespan(web_app: FastAPI):
+    yield
+
+auth_app = FastAPI(lifespan=lifespan)
+auth_app.include_router(main_router)
+auth_app.include_router(bg_router)
+
+@auth_app.middleware('http')
+async def auth_ux_test_middleware(request: Request, call_next: Callable):
+    url = request.url.path
+    ip = get_client_ip(request)
+
+    "Веб-адреса или запросы Сервера"
+    if not url.startswith('/api') or ip in allowed_ips:
+        log_event(Events.white_list_url, request=request)
+        return JSONResponse(status_code=200, content={'message': 'вайт лист'})
+    "Не нуждаются в авторизации, Если нет кук"
+    if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
+        log_event(Events.white_list_url, request=request, level='WARNING')
+        return JSONResponse(status_code=200, content={'message': 'вайт лист'})
+    "Только если есть aT и rT"
+    if request.cookies.get('access_token') and request.cookies.get('refresh_token'):
+        return JSONResponse(status_code=200, content={'message': 'Процесс подтверждения авторизации'})
+
+    return JSONResponse(status_code=401, content={'message': 'Нужна авторизация'})
+
+
+@pytest_asyncio.fixture
+async def auth_ac():
+    async with AsyncClient(
+        transport=ASGITransport(app=auth_app),
+        base_url=f'http://{env.uvicorn_host}:8100'
+    ) as auth_async_client:
+        yield auth_async_client
+
+@pytest_asyncio.fixture
+async def auth_ac_methods(auth_ac):
+    ac_methods = {
+        'POST': auth_ac.post,
+        'GET': auth_ac.get,
+        'DELETE': auth_ac.delete,
+        'PUT': auth_ac.put
+    }
+    return ac_methods
 
 @pytest_asyncio.fixture(scope='session', autouse=True)
-async def prepare_elasticsearch(run_mode):
+async def prepare_elasticsearch(uvicorn_test_server, run_mode):
     if run_mode == 'elastic':
-        yield
         aioes = AsyncElasticsearch(**get_host_port_ES())
         await aioes.indices.delete(index='test_index1')
         await aioes.close()
+    yield
 
 def get_urls_plan(cookies: bool):
     arr = [

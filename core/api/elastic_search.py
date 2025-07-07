@@ -1,6 +1,4 @@
-import asyncio
-
-from elasticsearch import NotFoundError, BadRequestError
+from elasticsearch import NotFoundError
 from fastapi import APIRouter
 
 from core.config_dir.base_dependencies import PagenSearchDep, ElasticDep
@@ -9,7 +7,6 @@ from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.schemas.product_schemas import SearchSchema
 from core.utils.anything import Tags
-from core.utils.searching.elastic_utils import gener_docs
 from core.utils.searching.index_settings import index_mapping, aliases, settings
 from core.utils.searching.search_ptn import looking
 
@@ -23,8 +20,7 @@ async def put_index(index_name: str, db: PgSqlDep, es_client: ElasticDep):
     async with es_client as aioes:
         "Обеспечение Идемпотентности ручки"
         try:
-            aliases_ = await aioes.indices.get_alias(name=env.search_index)
-            log_event(f'{aliases_}', level='DEBUG')
+            aliases_ = await aioes.indices.get_alias(name=search_index)
             if aliases_:
                 return {'success': False, 'message': "Индекс уже был создан и Проиндексирован"}
         except NotFoundError:
@@ -35,11 +31,23 @@ async def put_index(index_name: str, db: PgSqlDep, es_client: ElasticDep):
                                    aliases=aliases,
                                    settings=settings,
                                    mappings=index_mapping)
-        await asyncio.sleep(1)
-        async for doc in gener_docs(records):
-            action = {'index': {'_index': search_index, '_id': doc['id']}}
-            body = {'prd_name': doc['prd_name'], 'category': doc['category']}
-            await aioes.bulk(body=[action, body])
+        batch = []
+        for record in records:
+            category = ''.join(record['category_full'].replace('/', ' '))
+            doc = {
+                "id": record['id'],
+                "prd_name": record['prd_name'],
+                "category": category
+            }
+            batch.append({'index': {'_index': index_name, '_id': doc['id']}})       # action
+            batch.append({'prd_name': doc['prd_name'], 'category': doc['category']})  # body
+            if len(batch) >= 2000:
+                await aioes.bulk(body=batch)
+                batch.clear()
+        if batch:
+            await aioes.bulk(body=batch, refresh=True)
+        else:    await aioes.indices.refresh(index=index_name)
+
         return {'success': True, 'message': f'Индекс {index_name} поднят, документы вставлены'}
 
 
@@ -57,6 +65,7 @@ async def search(search_string: SearchSchema, pagen: PagenSearchDep, db: PgSqlDe
             from_=pagen.offset,
             size=pagen.limit,
         )
+    log_event(f'{search_res}', level='DEBUG')
     ids_prdts = tuple(int(hit['_id']) for hit in search_res['hits']['hits'])
     log_event("Поисковая выдача: search_string: \"%s\"; length hits: %s", search_string.text, len(ids_prdts), level='WARNING')
     layout_products = await db.products.products_by_id(ids_prdts)
