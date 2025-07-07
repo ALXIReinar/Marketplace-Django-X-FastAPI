@@ -36,9 +36,9 @@ app.add_middleware(
     allow_methods=['GET', 'POST', 'PUT', 'DELETE'],
     allow_headers=['*']
 )
-app.add_middleware(TrafficCounterMiddleware)
-app.add_middleware(AuthUxMiddleware)
 app.add_middleware(LoggingTimeMiddleware)
+app.add_middleware(AuthUxMiddleware)
+app.add_middleware(TrafficCounterMiddleware, requests_limit=env.requests_limit, ttl_limit=env.ttl_requests_limit)
 
 
 app.mount('/', StaticFiles(directory=f'{env.abs_path}/core/templates', html=True), name='frontend')

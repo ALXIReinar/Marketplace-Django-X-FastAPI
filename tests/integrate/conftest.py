@@ -9,8 +9,9 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from core.api import main_router
+from core.api.middlewares import TrafficCounterMiddleware
 from core.bg_tasks import bg_router
-from core.config_dir.config import get_host_port_ES, env
+from core.config_dir.config import get_host_port_ES, env, get_uvicorn_host
 from core.config_dir.logger import log_event
 from core.config_dir.urls_middlewares import allowed_ips, white_list_prefix_NO_COOKIES
 from core.utils.anything import Events
@@ -45,11 +46,22 @@ async def auth_ux_test_middleware(request: Request, call_next: Callable):
     return JSONResponse(status_code=401, content={'message': 'Нужна авторизация'})
 
 
+ddos_app = FastAPI(lifespan=lifespan)
+ddos_app.add_middleware(TrafficCounterMiddleware, requests_limit=env.requests_limit, ttl_limit=env.ttl_requests_limit)
+
+@pytest_asyncio.fixture()
+async def ddos_ac():
+    async with AsyncClient(
+            base_url=f'http://{get_uvicorn_host()}:8100',
+            transport=ASGITransport(ddos_app)
+    ) as async_client:
+        yield async_client
+
 @pytest_asyncio.fixture
 async def auth_ac():
     async with AsyncClient(
         transport=ASGITransport(app=auth_app),
-        base_url=f'http://{env.uvicorn_host}:8100'
+        base_url=f'http://{get_uvicorn_host()}:8100'
     ) as auth_async_client:
         yield auth_async_client
 

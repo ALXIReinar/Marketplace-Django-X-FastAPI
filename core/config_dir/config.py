@@ -95,6 +95,8 @@ class Settings(BaseSettings):
     uvicorn_host: str
     uvicorn_host_docker: str
 
+    requests_limit: int
+    ttl_requests_limit: int
     mail_sender: str
     dockerized: bool = os.getenv('DOCKERIZED', False)
     deployed: bool = os.getenv('DEPLOYED', False)

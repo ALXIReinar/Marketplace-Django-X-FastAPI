@@ -1,6 +1,5 @@
 import pytest
 
-from core.config_dir.logger import log_event
 
 @pytest.mark.skipif('config.getoption("--run-mode") != "elastic"')
 @pytest.mark.usefixtures('prepare_elasticsearch', 'ac')

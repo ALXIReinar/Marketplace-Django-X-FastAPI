@@ -144,7 +144,8 @@ def log_event(event: Events | str, *args, request: Request | WebSocket=None, lev
 
     meth, url, ip = '', '', ''
     if isinstance(request, Request):
-        meth, url, ip = request.method, request.url, get_client_ip(request)
+        meth, url = request.method, request.url
+        ip = request.state.client_ip if hasattr(request.state, 'client_ip') else get_client_ip(request)
     elif isinstance(request, WebSocket):
         url, ip = request.url, get_client_ip(request)
 

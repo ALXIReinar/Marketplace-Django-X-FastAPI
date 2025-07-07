@@ -18,17 +18,24 @@ from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decod
 
 
 class TrafficCounterMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, requests_limit: int = 0, ttl_limit: int = 0):
+        super().__init__(app=app)
+        self.limit = requests_limit
+        self.ttl = ttl_limit
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        ip = request.client.host
+        ip = get_client_ip(request)
+        request.state.client_ip = ip
         if ip in allowed_ips:
             return await call_next(request)
 
         async with get_redis_connection() as redis:
             request_counter = await redis.get(ip)
-            if request_counter and int(request_counter.decode()) > 250:
+            if request_counter and int(request_counter.decode()) >= self.limit:
+                log_event('Отброшен за превышение обращений!', level='CRITICAL')
                 return JSONResponse(status_code=429, content={'message': 'Превышен лимит обращений. Попробуйте позже'})
             elif request_counter is None:
-                await redis.set(ip, value=1, ex=300)
+                await redis.set(ip, value=1, ex=self.ttl)
             else:
                 to_disappear = await redis.ttl(ip)
                 await redis.set(ip, value=int(request_counter.decode()) + 1, ex=to_disappear)
@@ -51,7 +58,7 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
         request.state.session_id = '1'
 
         url = request.url.path
-        ip = get_client_ip(request)
+        ip = request.state.client_ip
 
         "Веб-адреса или запросы Сервера"
         if not url.startswith('/api') or ip in allowed_ips:

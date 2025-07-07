@@ -108,7 +108,12 @@ async def ac(uvicorn_test_server):
 @pytest_asyncio.fixture(scope='session', autouse=True)
 async def prepare_user_seller_product(pg_db):
     setup_queries = [
-        "insert into public.users (name, email, passw) values ('admin_user', 'test_plug@gmail.com', 'plugpassw'),('test_user1', 'test_user1@gmail.com', 'userpassw'), ('test_user2', 'test_user2@gmail.com', 'userpassw')",
+        """insert into public.users (name, email, passw) values
+         ('admin_user', 'test_plug@gmail.com', 'plugpassw'),
+         ('test_user1', 'test_user1@gmail.com', 'userpassw1'),
+         ('test_user2', 'test_user2@gmail.com', 'userpassw2'),
+         ('test_user1', 'test_user3@gmail.com', 'userpassw3'),
+         ('test_user2', 'test_user4@gmail.com', 'userpassw4')""",
         "insert into addresses_prd_points (address_text, work_time_start, work_time_end) values ('Небылинск, ул. Колотушкина,  д.44', '09:00.00', '21:00.00')",
         "insert into addresses_users (user_id, prd_point_id) values(2, 1), (3, 1)",
 
@@ -136,6 +141,12 @@ async def prepare_user_seller_product(pg_db):
         "insert into favorite (user_id, prd_id) values(2, 1), (2, 2), (2, 3), (2, 4)",
         "insert into preferences_users (user_id, category_id) values(2, 1), (2, 2), (3, 1)",
 
+        "insert into chats (is_group) values(false), (false)",
+        """insert into chat_users (chat_id, user_id, chat_name) values
+         (1, 2, 'test_chat_1-3'), (1, 3, 'test_chat_1-2'),
+         (2, 4, 'test_chat_2-5'), (2, 5, 'test_chat_2-4')""",
+        """insert into chat_messages (chat_id, owner_id, text_field, type, local_id, is_commited) values
+        (1, 2, 'test mes 1', 1, 1, true), (1, 2, 'test mes 2', 1, 2, true),(1, 2, 'test mes 3', 1, 3, true)""",
     ]
     async with pg_db.acquire() as conn:
         await conn.execute(f"TRUNCATE TABLE {','.join(db_tables)} RESTART IDENTITY CASCADE")
