@@ -27,6 +27,7 @@ async def put_index(index_name: str, db: PgSqlDep, es_client: ElasticDep):
             pass
 
         "Создаём и Наполняем индекс"
+        log_event("Создание индекса: %s", index_name, level='WARNING')
         await aioes.indices.create(index=index_name,
                                    aliases=aliases,
                                    settings=settings,
@@ -44,10 +45,11 @@ async def put_index(index_name: str, db: PgSqlDep, es_client: ElasticDep):
             if len(batch) >= 2000:
                 await aioes.bulk(body=batch)
                 batch.clear()
+                log_event('В индекс "%s" залетела партия!', index_name, level='WARNING')
         if batch:
             await aioes.bulk(body=batch, refresh=True)
         else:    await aioes.indices.refresh(index=index_name)
-
+        log_event('Индексация и создание "%s" успешны!', index_name, level='WARNING')
         return {'success': True, 'message': f'Индекс {index_name} поднят, документы вставлены'}
 
 
@@ -65,7 +67,7 @@ async def search(search_string: SearchSchema, pagen: PagenSearchDep, db: PgSqlDe
             from_=pagen.offset,
             size=pagen.limit,
         )
-    log_event(f'{search_res}', level='DEBUG')
+
     ids_prdts = tuple(int(hit['_id']) for hit in search_res['hits']['hits'])
     log_event("Поисковая выдача: search_string: \"%s\"; length hits: %s", search_string.text, len(ids_prdts), level='WARNING')
     layout_products = await db.products.products_by_id(ids_prdts)

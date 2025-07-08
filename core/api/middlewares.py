@@ -36,6 +36,7 @@ class TrafficCounterMiddleware(BaseHTTPMiddleware):
                 return JSONResponse(status_code=429, content={'message': 'Превышен лимит обращений. Попробуйте позже'})
             elif request_counter is None:
                 await redis.set(ip, value=1, ex=self.ttl)
+                log_event('Добавлен в Трафик-лист: ip %s; user-agent: %s', ip, request.headers.get('user-agent'))
             else:
                 to_disappear = await redis.ttl(ip)
                 await redis.set(ip, value=int(request_counter.decode()) + 1, ex=to_disappear)

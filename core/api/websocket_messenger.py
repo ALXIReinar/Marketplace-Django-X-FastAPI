@@ -95,7 +95,6 @@ async def ws_control(ws: WebSocket):
         while True:
             json_data = await ws.receive_json()
             await broadcast.publish(channel=chat_channel, message=json_data)
-            log_event("message: %s; channel: %s", json_data, chat_channel, request=ws, level='DEBUG')
     except Exception as e:
         task.cancel()
         log_event("Вебсокет закрылся! | Exception: %s | user_id: %s; chat_id: %s",
