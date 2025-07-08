@@ -13,11 +13,11 @@ from core.config_dir.config import encryption
 from core.config_dir.logger import log_event
 from core.utils.anything import Tags, Events, hide_log_param
 
-router = APIRouter(prefix='/api/users', tags=[Tags.users])
+router = APIRouter(prefix='/api', tags=[Tags.users])
 
 
 
-@router.post('/sign_up', summary="Регистрация")
+@router.post('/public/users/sign_up', summary="Регистрация")
 async def registration_user(creds: UserRegSchema, db: PgSqlDep, request: Request):
     insert_attempt = await db.users.reg_user(creds.email, creds.passw, creds.name)
     if insert_attempt == 'INSERT 0 0':
@@ -28,14 +28,14 @@ async def registration_user(creds: UserRegSchema, db: PgSqlDep, request: Request
 
 
 
-@router.post('/login', summary="Вход в аккаунт")
+@router.post('/public/users/login', summary="Вход в аккаунт")
 async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, request: Request):
     db_user = await db.users.select_user(creds.email)
 
     if db_user and encryption.verify(creds.passw, db_user['passw']):
         token_schema = TokenPayloadSchema(
             id=db_user['id'],
-            user_agent=request.headers['user-agent'],
+            user_agent=request.headers.get('user-agent'),
             ip=request.client.host
         )
         access_token, refresh_token = await issue_aT_rT(db,token_schema)
@@ -48,7 +48,7 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
     raise HTTPException(status_code=401, detail='Неверный логин или пароль')
 
 
-@router.put('/logout')
+@router.put('/private/users/logout')
 async def log_out(request: Request, response: Response):
     response.delete_cookie('access_token')
     response.delete_cookie('refresh_token')
@@ -64,7 +64,7 @@ async def show_seances(request: Request, db: PgSqlDep):
 
 
 "Сброс Пароля"
-@router.post('/passw/forget_passw')
+@router.post('/public/users/passw/forget_passw')
 async def account_recovery(email: RecoveryPasswSchema, db: PgSqlDep, request: Request):
     log_event('Попытка сброса пароля | email: %s', hide_log_param(email.email), request=request, level='WARNING')
 
@@ -78,7 +78,7 @@ async def account_recovery(email: RecoveryPasswSchema, db: PgSqlDep, request: Re
     })
 
 
-@router.get('/passw/compare_confirm_code')
+@router.get('/public/users/passw/compare_confirm_code')
 async def compare_mail_user_code(reset_token: str, code: str, request: Request, redis: RedisDep):
     pre_user_id = await redis.get(reset_token)
     if pre_user_id:
@@ -94,7 +94,7 @@ async def compare_mail_user_code(reset_token: str, code: str, request: Request, 
     raise HTTPException(status_code=410, detail='Сессия истекла, повторите процедуру')
 
 
-@router.put('/passw/set_new_passw')
+@router.put('/public/users/passw/set_new_passw')
 async def reset_password(
         update_secrets: UpdatePasswSchema,
         db: PgSqlDep,

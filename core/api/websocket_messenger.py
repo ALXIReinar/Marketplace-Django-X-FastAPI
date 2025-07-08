@@ -17,11 +17,11 @@ from core.bg_tasks.celery_processing import bg_s3_upload
 from core.data.postgre import PgSqlDep, PgSql, set_connection
 from core.data.s3_storage import S3Dep
 from core.schemas.chat_schema import WSOpenCloseSchema, WSMessageSchema, PaginationChatMessSchema, ChatSaveFiles, \
-    WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema, WSPresignedLinkSchema
-from core.utils.anything import Tags, WSControl, cut_log_param
+    WSFileSchema, WSReadUpdateSchema, WSCommitMsgSchema, WSPresignedLinkSchema, WSControl, WSFileChunksSchema
+from core.utils.anything import Tags, cut_log_param
 from core.utils.file_cutter import content_cutter, cutter_types
 from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
-from core.utils.processing_data.raw_fields_to_pydantic import parse_schema
+from core.utils.processing_data.raw_fields_to_pydantic import parse_raw_schema
 from core.utils.websocket_tools.broadcast_channel import pub_sub
 from core.utils.celery_serializer import convert
 from core.utils.websocket_tools.ws_auth_ware import get_creds_open_online_connection
@@ -78,38 +78,31 @@ async def ws_control(ws: WebSocket):
         log_event("Неучтённая Ошибка!!! | Exception: %s", e, request=ws, level='CRITICAL')
         raise WebSocketDisconnect(code=4000, reason='Exception')
 
-    if contract_obj.event == WSControl.open:
-        chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
+    chat_channel = f"{WSControl.ws_chat_channel}:{contract_obj.chat_id}"
+    "Получаем последние сообщения"
+    pool = await set_connection()
+    async with pool.acquire() as conn:
+        db = PgSql(conn)
+        last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset, contract_obj.user_id)
+    log_event("Открыт ВебСокет; Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=ws)
+    await ws.send_json({'event': WSControl.last_messages, "messages": convert(last_chat_messages)})
 
-        "Получаем последние сообщения"
-        pool = await set_connection()
-        async with pool.acquire() as conn:
-            db = PgSql(conn)
-            last_chat_messages = await db.chats.get_chat_messages(contract_obj.chat_id, pagen.limit, pagen.offset, contract_obj.user_id)
-        log_event("Открыт ВебСокет; Отданы сообщения: %s; chat_id: %s", len(last_chat_messages), contract_obj.chat_id, request=ws)
-        await ws.send_json({'event': WSControl.last_messages, "messages": convert(last_chat_messages)})
-
-        "Открываем вещание"
-        task = asyncio.create_task(
-            pub_sub(chat_channel, broadcast, ws)
-        )
-        try:
-            while True:
-                json_data = await ws.receive_json()
-                await broadcast.publish(channel=chat_channel, message=json_data)
-                log_event("message: %s; channel: %s", json_data, chat_channel, request=ws, level='DEBUG')
-        except Exception as e:
-            task.cancel()
-            log_event("Вебсокет закрылся! | Exception: %s | user_id: %s; chat_id: %s",
-                      e, user_id, contract_obj.chat_id, request=ws, level='WARNING')
-    raise WebSocketDisconnect(code=4001, reason='Неверные данные!')
+    "Открываем вещание"
+    task = asyncio.create_task(
+        pub_sub(chat_channel, broadcast, ws)
+    )
+    try:
+        while True:
+            json_data = await ws.receive_json()
+            await broadcast.publish(channel=chat_channel, message=json_data)
+    except Exception as e:
+        task.cancel()
+        log_event("Вебсокет закрылся! | Exception: %s | user_id: %s; chat_id: %s",
+                  e, user_id, contract_obj.chat_id, request=ws, level='WARNING')
 
 
 @router.post('/send_message')
 async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSqlDep):
-    if contract_obj.event != WSControl.send_msg:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал для JSON'})
-
     saved_msg_json = await db.chats.save_message(
         chat_id=contract_obj.chat_id,
         user_id=request.state.user_id,
@@ -125,24 +118,21 @@ async def send_json_ws(contract_obj: WSMessageSchema, request: Request, db: PgSq
 @router.post('/send_file/local')
 async def absorb_binary(
         file_hint: Annotated[str, Form(
-            example='{"event":"save_file_local","chat_id":4,"type":2,"text_field":null,"reply_id":null,"file_name":"example.png"}'
+            example='{"event":"save_file_fs","chat_id":4,"type":2,"text_field":null,"reply_id":null,"file_name":"example.png"}'
         )],
         file_obj: UploadFile,
         request: Request,
         db: PgSqlDep,
 ):
     """
-    ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB
+    ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB НА СТОРОНЕ ФРОНТА
     """
-    file_hint = parse_schema(file_hint, ChatSaveFiles)
-
-    if file_hint.event != WSControl.save_file_local:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал в JSON'})
+    file_hint = parse_raw_schema(file_hint, ChatSaveFiles)
 
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = str(uuid4())
     ext = os.path.splitext(file_hint.file_name)[-1]
-    db_file_name =f'chats/{uniq_id}{ext}'
+    db_file_name =f'users/chats/{uniq_id}{ext}'
     try:
         with open(f'{env.abs_path}{env.local_storage}/{db_file_name}', 'wb') as f:
             f.write(file_obj.file.read())
@@ -168,7 +158,7 @@ async def absorb_binary(
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
 
 
-@router.get('/get_file/local')
+@router.post('/get_file/local')
 async def get_binary_file(file_obj: WSFileSchema, request: Request):
     """
     Допускается только:
@@ -176,26 +166,20 @@ async def get_binary_file(file_obj: WSFileSchema, request: Request):
      - type: 2 - media, только фото!!!
              4 - doc
     """
-    if file_obj.event != WSControl.get_file or file_obj.msg_type in (1, 3):
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип сообщения!'})
-
     log_event('Отправлен файл: user_id: %s; s_id: %s; file_type: %s',
               request.state.user_id, request.state.session_id, file_obj.msg_type, request=request)
-    return FileResponse(f'.{env.local_storage}{file_obj.file_path}', media_type='application/octet-stream')
+    return FileResponse(f'.{env.local_storage}/{file_obj.file_path}', media_type='application/octet-stream')
 
 
-@router.get('/get_file_chunks/local')
-async def get_chunks_file(file_obj: WSFileSchema, request: Request):
+@router.post('/get_file_chunks/local')
+async def get_chunks_file(file_obj: WSFileChunksSchema, request: Request):
     """
     Допускается только:
     chat_messages:
      - type: 2 - media, только видео!!!
              3 - audio
     """
-    if file_obj.event != WSControl.get_file or file_obj.msg_type in (1, 4):
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип передал'})
-
-    log_event('Стриминг файла: %s, msg_type: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
+    log_event('Стриминг файла: %s, msg_type: %s; user_id: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
     return StreamingResponse(content_cutter(file_obj.file_path), media_type=cutter_types[file_obj.msg_type])
 
 
@@ -213,10 +197,7 @@ async def save_to_bucket(
     """
     ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB
     """
-    file_hint = parse_schema(file_hint, ChatSaveFiles)
-
-    if file_hint.event != WSControl.save_file_cloud:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал в JSON'})
+    file_hint = parse_raw_schema(file_hint, ChatSaveFiles)
 
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = str(uuid4())
@@ -252,11 +233,9 @@ async def save_to_bucket(
 
 @router.post('/bulk_presigned_urls')
 async def give_s3_object_urls(s3_req: WSPresignedLinkSchema, request: Request, s3: S3Dep):
-    if s3_req.event != WSControl.presigned_url:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие передал'})
-
     pre_urls: dict[str, str] = dict()
     log_event('Начало выдачи ссылок на s3-объекты в кол-ве: %s', len(s3_req.file_keys), request=request, level='WARNING')
+
     for idx, file in enumerate(s3_req.file_keys, 1):
         pre_url = await s3.set_presigned_url(file)
         pre_urls[file] = pre_url
@@ -268,9 +247,6 @@ async def give_s3_object_urls(s3_req: WSPresignedLinkSchema, request: Request, s
 
 @router.put('/set_readed')
 async def update_read_count(contract_obj: WSReadUpdateSchema, request: Request, db: PgSqlDep):
-    if contract_obj.event != WSControl.set_readed:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип передал'})
-
     await db.chats.update_readed_messages(contract_obj.user_id, contract_obj.chat_id, contract_obj.msg_id)
     log_event("Новые прочитанные сообщения | user_id: %s; chat_id: %s; msg_local_id: %s",
               contract_obj.user_id, contract_obj.chat_id, contract_obj.msg_id, request=request)
@@ -279,9 +255,6 @@ async def update_read_count(contract_obj: WSReadUpdateSchema, request: Request, 
 
 @router.put('/commit_msg')
 async def commit_message(contract_obj: WSCommitMsgSchema, request: Request, db: PgSqlDep):
-    if contract_obj.event != WSControl.commit_msg:
-        raise HTTPException(status_code=403, detail={'success': False, 'message': 'Фронт, не то событие или тип передал'})
-
     await db.chats.commit_message(contract_obj.chat_id, contract_obj.msg_id)
     log_event('Сообщение утверждено и отправлено | chat_id: %s; msg_local_id: %s', contract_obj.chat_id, contract_obj.msg_id, request=request)
     return {'success': True, 'message': 'Коммит сообщения успешен!'}

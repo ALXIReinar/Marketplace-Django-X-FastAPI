@@ -10,3 +10,4 @@ RUN update-ca-certificates
 
 RUN pip3 install --upgrade setuptools
 RUN pip3 install -r requirements.txt
+# RUN rm -rf /var/lib/apt/lists/*  # удалить кэш и временные файлы после установки пакетов

@@ -170,6 +170,7 @@ cython_debug/
 *.zip
 *.xlsx
 *.tar.gz
+.env.test
 images/
 keys/
 .vscode/

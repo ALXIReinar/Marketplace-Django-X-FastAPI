@@ -7,7 +7,6 @@ from pathlib import Path
 
 from botocore.config import Config
 from elasticsearch import AsyncElasticsearch
-from fastapi import FastAPI
 from aiobotocore.session import get_session as async_get_session
 from aiosmtplib import SMTP
 from broadcaster import Broadcast
@@ -19,7 +18,6 @@ from pydantic import BaseModel
 
 WORKDIR = Path(__file__).resolve().parent.parent.parent
 
-app = FastAPI()
 encryption = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
@@ -78,9 +76,10 @@ class Settings(BaseSettings):
     s3_root_cert_docker: str
 
     rabbitmq_user: str
-
-    celery_broker_url: str
-    celery_result_backend: str
+    rabbitmq_passw: str
+    rabbitmq_host: str
+    rabbitmq_host_docker: str
+    rabbitmq_port_docker: str
 
     smtp_host: str
     smtp_port: int
@@ -96,6 +95,8 @@ class Settings(BaseSettings):
     uvicorn_host: str
     uvicorn_host_docker: str
 
+    requests_limit: int
+    ttl_requests_limit: int
     mail_sender: str
     dockerized: bool = os.getenv('DOCKERIZED', False)
     deployed: bool = os.getenv('DEPLOYED', False)
@@ -111,52 +112,74 @@ def get_env_vars():
     return Settings()
 env = get_env_vars()
 
+"Uvicorn"
+def get_uvicorn_host(env=env):
+    uvi_host = env.uvicorn_host
+    if env.deployed and env.celery_worker:
+        uvi_host = env.uvicorn_host_docker
+    elif env.dockerized:
+        uvi_host = env.internal_host
+    return uvi_host
+
+
 "ElasticSearch"
-es_host = env.elastic_host
-es_settings = dict(
-    basic_auth=(env.elastic_user, env.elastic_password),
-    ca_certs=env.elastic_cert if not env.dockerized else env.elastic_cert_docker,
-    verify_certs=False
-)
-if env.dockerized:
-    es_host = env.elastic_host_docker if env.docker_es else env.internal_host
-es_link = f'https://{es_host}:{env.elastic_port}'
-es_settings['hosts'] = [es_link]
-if env.docker_es:
-    es_link = f'http://{es_host}:{env.elastic_port}'
-es_settings = dict(
-    hosts=[es_link]
-)
-es_client = AsyncElasticsearch(**es_settings)
+def get_host_port_ES(env=env):
+    es_host = env.elastic_host
+    settings = dict(
+        basic_auth=(env.elastic_user, env.elastic_password),
+        ca_certs=env.elastic_cert if not env.dockerized else env.elastic_cert_docker,
+        verify_certs=False
+    )
+    if env.dockerized:
+        es_host = env.elastic_host_docker if env.docker_es else env.internal_host
+    es_link = f'https://{es_host}:{env.elastic_port}'
+    settings['hosts'] = [es_link]
+    if env.docker_es:
+        es_link = f'http://{es_host}:{env.elastic_port}'
+        settings = dict(
+            hosts=[es_link]
+        )
+    return settings
+es_settings = get_host_port_ES()
+
+async def get_elastic_client():
+    es_client = AsyncElasticsearch(**es_settings)
+    try:
+        yield es_client
+    finally:
+        await es_client.close()
 
 
 "PostgreSql"
-db_host = env.pg_host
-db_port = env.pg_port
-passw = env.pg_password
-if env.cloud_db:
-    "БД-Облако"
-    db_host = env.pg_host_cl
-    db_port = env.pg_port_cl
-    passw = env.pg_password_cl
-elif env.deployed:
-    "Фулл докер-деплой"
-    db_host = env.pg_host_docker
-elif env.docker_db and env.celery_worker:
-    "БД в Докере и запускается Воркер"
-    db_host = env.pg_host_celery_worker_docker_db
-elif not env.cloud_db and env.celery_worker:
-    "Локальная БД и Воркер"
-    db_host = env.internal_host
-elif env.docker_db and not env.dockerized:
-    "БД в докере, Локалка подрубается"
-    db_port = env.pg_port_docker
-
+def get_host_port_password_DB(env=env):
+    db_host = env.pg_host
+    db_port = env.pg_port
+    passw = env.pg_password
+    if env.cloud_db:
+        "БД-Облако"
+        db_host = env.pg_host_cl
+        db_port = env.pg_port_cl
+        passw = env.pg_password_cl
+    elif env.deployed:
+        "Фулл докер-деплой"
+        db_host = env.pg_host_docker
+    elif env.docker_db and env.celery_worker:
+        "БД в Докере и запускается Воркер"
+        db_host = env.pg_host_celery_worker_docker_db
+    elif not env.cloud_db and env.celery_worker:
+        "Локальная БД и Воркер"
+        db_host = env.internal_host
+    elif env.docker_db and not env.dockerized:
+        "БД в докере, Локалка подрубается"
+        db_port = env.pg_port_docker
+    return dict(
+        password=passw,
+        host=db_host,
+        port=db_port,
+    )
 pool_settings = dict(
     user=env.pg_user,
-    password=passw,
-    host=db_host,
-    port=db_port,
+    **get_host_port_password_DB(),
     database=env.pg_db,
     command_timeout=60
 )
@@ -195,6 +218,30 @@ smtp = SMTP(
 )
 
 
+"RabbitMQ"
+def get_host_port_Rmq(env=env):
+    host = env.rabbitmq_host_docker if env.dockerized else env.rabbitmq_host
+    port = env.rabbitmq_port_docker
+    user, passw = env.rabbitmq_user, env.rabbitmq_passw
+    return dict(
+        host=host,
+        port=port,
+        user=user,
+        passw=passw
+    )
+rabbit_connective_pairs = get_host_port_Rmq()
+
+
+"Redis"
+def get_host_port_REDIS(env=env):
+    host = env.redis_host_docker if env.dockerized else env.redis_host
+    port = env.redis_port_docker if env.dockerized else env.redis_port
+    return dict(
+        host=host,
+        port=port
+    )
+redis_connective_pairs = get_host_port_REDIS()
+
+
 "Broadcast WebSocket"
-broadcast = Broadcast(f"redis://{env.redis_host}:{env.redis_port}" if not env.dockerized
-                      else f"redis://{env.redis_host_docker}:{env.redis_port_docker}")
+broadcast = Broadcast(f"redis://{redis_connective_pairs['host']}:{redis_connective_pairs['port']}")

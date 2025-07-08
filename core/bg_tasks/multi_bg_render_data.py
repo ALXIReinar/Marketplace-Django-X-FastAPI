@@ -6,7 +6,7 @@ from core.data.postgre import PgSqlDep
 from core.schemas.product_schemas import LVL1ExtendedPrdSchema, LVL2ExtendedPrdSchema, ProductBase
 from core.utils.anything import Events
 
-router = APIRouter(prefix='/ext_prd')
+router = APIRouter(prefix='/public/bg_tasks/ext_prd')
 
 
 

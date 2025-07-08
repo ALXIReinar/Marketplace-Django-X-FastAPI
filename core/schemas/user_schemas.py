@@ -2,10 +2,8 @@ import re
 
 from typing import Annotated
 
-
 from pydantic import BaseModel, Field, field_validator
 from pydantic import EmailStr
-from typing_extensions import Literal
 
 
 class ValidatePasswSchema(BaseModel):
@@ -27,8 +25,7 @@ class ValidatePasswSchema(BaseModel):
             if ch.isdigit():
                 digit = True
             elif ch in {'.', ';', '\\', '!', '_', '/', '&', ')', '>', '$', '*', '}', '=', ',', '[', '#', '%', '~', ':',
-                        '{',
-                        ']', '?', '@', "'", '(', '`', '"', '^', '|', '<', '-', '+'}:
+                        '{', ']', '?', '@', "'", '(', '`', '"', '^', '|', '<', '-', '+'}:
                 spec_spell = True
             elif ch == ch.upper():
                 uppercase = True

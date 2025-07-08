@@ -29,8 +29,7 @@ async def issue_token(
         token: TokenTypes | str,
         db: PgSqlDep = None,
         session_id: str | None=None,
-        client: TokenPayloadSchema=None,
-
+        client: TokenPayloadSchema=None
 ):
     if token_types[token] == TokenTypes.refresh_token:
         rT = add_ttl_limit(payload, token)

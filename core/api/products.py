@@ -16,8 +16,8 @@ async def preview_products(pagen: PagenDep, request: Request, db: PgSqlDep):
 
     records = await db.products.welcome_page_select(user_id, pagen.offset, pagen.limit)
     return {'products': records.products,
-            'counters': [
-                {'favorite': records.favorite}, {'ordered_items': records.ordered_items}]
+            'counters': {
+                'favorite': records.favorite, 'ordered_items': records.ordered_items, 'chats': records.chats}
             }
 
 

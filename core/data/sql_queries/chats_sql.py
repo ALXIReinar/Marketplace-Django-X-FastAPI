@@ -15,7 +15,7 @@ class ChatQueries:
             FROM chat_messages c_m
             JOIN chat_users c_u ON c_u.chat_id = c_m.chat_id AND c_u.user_id = $1
             WHERE c_m.is_commited = true
-            ORDER BY c_m.chat_id, c_m.writed_at DESC
+            ORDER BY c_m.chat_id, c_m.local_id DESC
         ),
         unread AS (
             SELECT c_u.chat_id, COUNT(m.id) FILTER (WHERE m.local_id > COALESCE(r.last_read_local_id, 0)) AS unread_count

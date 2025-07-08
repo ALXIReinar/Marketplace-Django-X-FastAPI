@@ -10,7 +10,7 @@ from core.data.postgre import PgSqlDep
 from core.data.s3_storage import S3Dep
 from core.utils.anything import Events
 
-router = APIRouter(prefix='/crons')
+router = APIRouter(prefix='/server/crons')
 
 
 

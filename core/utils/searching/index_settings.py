@@ -1,5 +1,7 @@
+from core.config_dir.config import env
+
 aliases = {
-    "products_index_alias": {}
+    env.search_index: {}
 }
 
 settings = {
@@ -73,6 +75,6 @@ index_mapping = {
 }
 
 swap_indices_actions =  [
-    {"add": {"index": "dev_products_idx", "alias": "products_index_alias"}},
-    {"remove": {"index": "products_idx", "alias": "products_index_alias"}}
+    {"add": {"index": "dev_products_idx", "alias": env.search_index}},
+    {"remove": {"index": "products_idx", "alias": env.search_index}}
 ]

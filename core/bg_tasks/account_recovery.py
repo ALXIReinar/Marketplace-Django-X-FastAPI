@@ -11,7 +11,7 @@ from core.data.redis_storage import RedisDep
 from core.schemas.user_schemas import RecoveryPrepareSchema
 from core.utils.anything import mail_ptn_forget_password_TEXT, mail_ptn_forget_password_HTML, hide_log_param
 
-router = APIRouter()
+router = APIRouter(prefix='/public/bg_tasks')
 
 
 
