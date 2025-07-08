@@ -65,6 +65,8 @@ class SimpleAuthMiddlewareTest(BaseHTTPMiddleware):
         "Веб-адреса или запросы Сервера"
         if not url.startswith('/api') or ip in allowed_ips:
             log_event(Events.white_list_url, request=request)
+            request.state.user_id = int(request.cookies.get('access_token') or 1)
+            request.state.session_id = request.cookies.get('refresh_token') or '1'
             return await call_next(request)
         "Не нуждаются в авторизации, Если нет кук"
         if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
@@ -100,13 +102,13 @@ def uvicorn_test_server():
     proccess.wait()
 
 @pytest_asyncio.fixture
-async def ac(uvicorn_test_server):
+async def ac(uvicorn_test_server, prepare_test_db):
     async with AsyncClient(base_url=f'http://{get_uvicorn_host()}:8000') as async_client:
         yield async_client
 
 
 @pytest_asyncio.fixture(scope='session', autouse=True)
-async def prepare_user_seller_product(pg_db):
+async def prepare_test_db(pg_db):
     setup_queries = [
         """insert into public.users (name, email, passw) values
          ('admin_user', 'test_plug@gmail.com', 'plugpassw'),
@@ -145,8 +147,9 @@ async def prepare_user_seller_product(pg_db):
         """insert into chat_users (chat_id, user_id, chat_name) values
          (1, 2, 'test_chat_1-3'), (1, 3, 'test_chat_1-2'),
          (2, 4, 'test_chat_2-5'), (2, 5, 'test_chat_2-4')""",
-        """insert into chat_messages (chat_id, owner_id, text_field, type, local_id, is_commited) values
-        (1, 2, 'test mes 1', 1, 1, true), (1, 2, 'test mes 2', 1, 2, true),(1, 2, 'test mes 3', 1, 3, true)""",
+        """insert into chat_messages (chat_id, owner_id, text_field, type, local_id, is_commited, content_path) values
+        (1, 2, 'test mes 1', 2, 1, true, 'users/chats/test_bulk1.png'), (1, 2, 'test mes 2', 2, 2, true, 'users/chats/test_bulk2.png'),(1, 2, 'test mes 3', 1, 3, true, null)""",
+        "insert into readed_mes (chat_id, user_id, last_read_local_id) values(1, 2, 3)",
     ]
     async with pg_db.acquire() as conn:
         await conn.execute(f"TRUNCATE TABLE {','.join(db_tables)} RESTART IDENTITY CASCADE")

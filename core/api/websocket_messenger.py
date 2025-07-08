@@ -126,14 +126,14 @@ async def absorb_binary(
         db: PgSqlDep,
 ):
     """
-    ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB
+    ОБЯЗАТЕЛЬНО ПОСТАВЬ ОГРАНИЧЕНИЕ НА ФАЙЛЫ - НЕ БОЛЬШЕ 250MB НА СТОРОНЕ ФРОНТА
     """
     file_hint = parse_raw_schema(file_hint, ChatSaveFiles)
 
     log_event('Загрузка файла: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     uniq_id = str(uuid4())
     ext = os.path.splitext(file_hint.file_name)[-1]
-    db_file_name =f'chats/{uniq_id}{ext}'
+    db_file_name =f'users/chats/{uniq_id}{ext}'
     try:
         with open(f'{env.abs_path}{env.local_storage}/{db_file_name}', 'wb') as f:
             f.write(file_obj.file.read())
@@ -169,10 +169,10 @@ async def get_binary_file(file_obj: WSFileSchema, request: Request):
     """
     log_event('Отправлен файл: user_id: %s; s_id: %s; file_type: %s',
               request.state.user_id, request.state.session_id, file_obj.msg_type, request=request)
-    return FileResponse(f'.{env.local_storage}{file_obj.file_path}', media_type='application/octet-stream')
+    return FileResponse(f'.{env.local_storage}/{file_obj.file_path}', media_type='application/octet-stream')
 
 
-@router.get('/get_file_chunks/local')
+@router.post('/get_file_chunks/local')
 async def get_chunks_file(file_obj: WSFileChunksSchema, request: Request):
     """
     Допускается только:
@@ -180,7 +180,7 @@ async def get_chunks_file(file_obj: WSFileChunksSchema, request: Request):
      - type: 2 - media, только видео!!!
              3 - audio
     """
-    log_event('Стриминг файла: %s, msg_type: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
+    log_event('Стриминг файла: %s, msg_type: %s; user_id: %s', file_obj.file_path, file_obj.msg_type, request.state.user_id, request=request)
     return StreamingResponse(content_cutter(file_obj.file_path), media_type=cutter_types[file_obj.msg_type])
 
 
