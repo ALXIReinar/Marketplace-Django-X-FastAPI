@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     delta_layout_msg: int = 20
 
     pg_db: str
+    pg_api_db: str
     pg_user: str
 
     pg_password: str

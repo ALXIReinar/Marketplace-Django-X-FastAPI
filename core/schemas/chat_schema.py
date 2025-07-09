@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.schemas.product_schemas import PaginationSchema
 
@@ -76,3 +76,8 @@ class WSPresignedLinkSchema(BaseModel):
     event: Literal[WSControl.presigned_url]
     chat_id: int
     file_keys: list[str]
+
+class WSPingS3Schema(BaseModel):
+    key: str
+    timeout: float = Field(default=60.0)
+    interval: float = Field(default=1.5)
