@@ -1,6 +1,5 @@
 import os
 import subprocess
-import time
 from collections.abc import Callable
 
 import pytest
@@ -101,11 +100,36 @@ def uvicorn_test_server():
     proccess.terminate()
     proccess.wait()
 
+@pytest.fixture(scope='session')
+def uvicorn_prod_server():
+    assert os.getenv('MODE') == 'Test'
+    os.environ['PYTHONUTF8'] = '1'
+    os.environ['REQUESTS_LIMIT'] = '600'
+
+    host = get_uvicorn_host()
+    port = '8200'
+
+    proccess = subprocess.Popen([
+        'uvicorn',
+        'core.main:app',
+        '--host', host,
+        '--port', port
+    ])
+    wait_conn(host, port)
+
+    yield
+    proccess.terminate()
+    proccess.wait()
+
 @pytest_asyncio.fixture
 async def ac(uvicorn_test_server, prepare_test_db):
     async with AsyncClient(base_url=f'http://{get_uvicorn_host()}:8000') as async_client:
         yield async_client
 
+@pytest_asyncio.fixture
+async def prod_ac(uvicorn_prod_server, prepare_test_db):
+    async with AsyncClient(base_url=f'http://{get_uvicorn_host()}:8200') as async_client:
+        yield async_client
 
 @pytest_asyncio.fixture(scope='session', autouse=True)
 async def prepare_test_db(pg_db):
@@ -114,8 +138,13 @@ async def prepare_test_db(pg_db):
          ('admin_user', 'test_plug@gmail.com', 'plugpassw'),
          ('test_user1', 'test_user1@gmail.com', 'userpassw1'),
          ('test_user2', 'test_user2@gmail.com', 'userpassw2'),
-         ('test_user1', 'test_user3@gmail.com', 'userpassw3'),
-         ('test_user2', 'test_user4@gmail.com', 'userpassw4')""",
+         ('test_user3', 'test_user3@gmail.com', 'userpassw3'),
+         ('test_user4', 'test_user4@gmail.com', 'userpassw4')""",
+        """insert into sessions_users(session_id, user_id, iat, exp, refresh_token, user_agent, ip) values
+         ('dhashdah', 1, now(),'08-07-2024', 'aget1n', 'neagent', '127.0.0.1'),
+         ('dhashdaasdh', 1, now(),'08-07-2024', 'aget2n', 'neagent', '127.0.0.2'),
+         ('123-ras-12', 1, now(),'08-07-2024', 'agetn3', 'neagent', '127.0.0.3')""",
+        
         "insert into addresses_prd_points (address_text, work_time_start, work_time_end) values ('Небылинск, ул. Колотушкина,  д.44', '09:00.00', '21:00.00')",
         "insert into addresses_users (user_id, prd_point_id) values(2, 1), (3, 1)",
 
@@ -148,7 +177,8 @@ async def prepare_test_db(pg_db):
          (1, 2, 'test_chat_1-3'), (1, 3, 'test_chat_1-2'),
          (2, 4, 'test_chat_2-5'), (2, 5, 'test_chat_2-4')""",
         """insert into chat_messages (chat_id, owner_id, text_field, type, local_id, is_commited, content_path) values
-        (1, 2, 'test mes 1', 2, 1, true, 'users/chats/test_bulk1.png'), (1, 2, 'test mes 2', 2, 2, true, 'users/chats/test_bulk2.png'),(1, 2, 'test mes 3', 1, 3, true, null)""",
+        (1, 2, 'test mes 1', 2, 1, true, 'users/chats/test_bulk1.png'), (1, 2, 'test mes 2', 2, 2, true, 'users/chats/test_bulk2.png'),(1, 2, 'test mes 3', 1, 3, true, null),
+        (1, 2, 'test mes 4', 1, 4, false, null),(1, 2, 'test mes 5', 1, 5, false, null)""",
         "insert into readed_mes (chat_id, user_id, last_read_local_id) values(1, 2, 3)",
     ]
     async with pg_db.acquire() as conn:
@@ -165,7 +195,7 @@ def pytest_addoption(parser):
     parser.addoption(
         '--run-mode',
         default='default',
-        choices=('default', 'stress', 'elastic')
+        choices=('default', 'ci_test', 'stress')
     )
 
 @pytest.fixture(scope='session', autouse=True)

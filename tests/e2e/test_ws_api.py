@@ -13,7 +13,7 @@ from core.schemas.chat_schema import WSControl
 from tests.e2e.conftest import open_ws_link, start_ws_json, md5
 
 
-@pytest.mark.usefixtures('ac')
+@pytest.mark.usefixtures("ac")
 class TestWS:
     """
     Советую запускать только целый класс. Отдельные тесты могут провалиться, тк зависят от других тестов
@@ -80,7 +80,7 @@ class TestWS:
             delivered_mes = json.loads(await ws2.recv())
 
         assert res_send.json()['success'] == True
-        assert delivered_mes['msg_id'] == 4
+        assert delivered_mes['msg_id'] == 6
 
     @pytest.mark.asyncio
     async def test_chats_layout(self, ac):
@@ -96,6 +96,37 @@ class TestWS:
 
         res_u2 = (await ac.get('/api/chats/', cookies={'access_token': '3', 'refresh_token': 'session3'})).json()
         assert res_u2['chat_records'][0]['unread_count'] == 1
+
+    @pytest.mark.parametrize(
+        'file_name, f_type',
+        [
+            ('test_img.png', "image/png"),
+            ('test_40_mb.mp4', "video/mp4"),
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_s3_upload(self, ac, file_name, f_type):
+        ws_link = await open_ws_link(ac, '1', 'session1')
+        async with websockets.connect(ws_link) as ws:
+            await ws.send(start_ws_json(1, None))
+            await ws.recv()
+            log_event(f'{env.abs_path}{env.local_storage}/{file_name}', level='CRITICAL')
+            with open(f'{env.abs_path}{env.local_storage}/{file_name}', 'rb') as f:
+                await ac.post(
+                    '/api/chats/send_file/s3',
+                    files={
+                        "file_obj": (file_name, f, f_type),
+                        "file_hint": (None, '{"event":"save_file_s3","chat_id":1,"type":2,"text_field":null,"reply_id":null, "file_name": ' + file_name + '}')
+                    }
+                )
+            log_event('{"event":"save_file_s3","chat_id":1,"type":2,"text_field":null,"reply_id":null, "file_name": ' + file_name + '}', level='CRITICAL')
+
+            res = json.loads(await ws.recv())
+            log_event(f'{res}', level='DEBUG')
+        assert res['msg_id'] == 7 and res.get('file_name')
+        ping = await ac.post('/api/public/s3/long_ping', json={'key': res['file_name']})
+        assert ping.json()['success'] == True
+
 
     @pytest.mark.asyncio
     async def test_bulk_presigned_urls(self, ac):

@@ -22,7 +22,7 @@ class TestSchemas:
     def test_passw_schema(self, passw_string, expect):
         with expect:
             res = ValidatePasswSchema(passw=passw_string)
-            assert res.passw == passw_string.encode(), (
+            assert res.passw == passw_string, (
                 "Валидация пароля не пройдена!"
             )
 

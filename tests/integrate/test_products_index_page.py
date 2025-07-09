@@ -11,8 +11,8 @@ from core.config_dir.logger import log_event
     ]
 )
 @pytest.mark.asyncio
-async def test_index_page(ac, xff_ip, cookies, counters, len_layout):
-    res = (await ac.post(
+async def test_index_page(prod_ac, xff_ip, cookies, counters, len_layout):
+    res = (await prod_ac.post(
         '/api/products/',
         cookies=cookies,
         headers=xff_ip,

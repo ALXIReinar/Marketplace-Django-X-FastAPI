@@ -8,11 +8,11 @@ class UsersQueries:
     def __init__(self, conn: Connection):
         self.conn = conn
 
-    async def reg_user(self, email, passw: str, name: str):
-        query = 'INSERT INTO users (email, passw, name) VALUES($1, $2, $3) ON CONFLICT (email) DO NOTHING RETURNING id'
+    async def reg_user(self, email, passw: str):
+        query = 'INSERT INTO users (email, passw) VALUES($1, $2) ON CONFLICT (email) DO NOTHING RETURNING id'
         hashed = encryption.hash(passw)
 
-        res = await self.conn.execute(query, email, hashed, name)
+        res = await self.conn.execute(query, email, hashed)
         return res
 
     async def select_user(self, email):
@@ -70,7 +70,11 @@ class AuthQueries:
         res = await self.conn.fetchrow(query, user_id, user_agent)
         return res
 
+    async def session_termination(self, user_id: int, session_id: str):
+        query = 'DELETE FROM sessions_users WHERE user_id = $1 AND session_id = $2'
+        await self.conn.execute(query, user_id, session_id)
+
 
     async def slam_refresh_tokens(self):
-        query = 'DELETE FROM public.sessions_users WHERE exp < now()'
+        query = 'DELETE FROM sessions_users WHERE exp < now()'
         await self.conn.execute(query)

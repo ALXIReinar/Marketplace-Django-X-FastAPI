@@ -47,5 +47,5 @@ async def get_product_card(
 @router.get('/bg_lvl3/{prd_id}')
 async def run_bg_lvl3(prd_id: int):
     log_event(Events.bg_product_stage_.format(3) + f"prd_id: {prd_id}")
-    task_3lvl_bg = lvl3_render.apply_async(args=[prd_id])
+    task_3lvl_bg = lvl3_render.delay(prd_id)
     return {'task-bg_lvl_3': task_3lvl_bg.id}

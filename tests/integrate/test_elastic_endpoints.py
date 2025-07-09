@@ -1,8 +1,8 @@
 import pytest
 
 
-@pytest.mark.skipif('config.getoption("--run-mode") != "elastic"')
-@pytest.mark.usefixtures('prepare_elasticsearch', 'ac')
+@pytest.mark.skipif('config.getoption("--run-mode") != "ci_test"')
+@pytest.mark.usefixtures('prepare_elasticsearch', "prod_ac")
 class TestSearch:
     @pytest.mark.parametrize(
         'index_name, result',
@@ -13,8 +13,8 @@ class TestSearch:
         ]
     )
     @pytest.mark.asyncio
-    async def test_index_up(self, ac, index_name, result):
-        res = await ac.put(f'/api/elastic/index_up/{index_name}')
+    async def test_index_up(self, prod_ac, index_name, result):
+        res = await prod_ac.put(f'/api/elastic/index_up/{index_name}')
         assert res.json()['success'] == result
 
     @pytest.mark.parametrize(
@@ -25,8 +25,8 @@ class TestSearch:
         ]
     )
     @pytest.mark.asyncio
-    async def test_searching(self, ac, search_word, waited_res):
-        res = await ac.post(
+    async def test_searching(self, prod_ac, search_word, waited_res):
+        res = await prod_ac.post(
             '/api/products/elastic/search',
             json={'text': search_word}
         )

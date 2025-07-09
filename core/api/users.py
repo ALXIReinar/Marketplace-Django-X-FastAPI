@@ -19,11 +19,11 @@ router = APIRouter(prefix='/api', tags=[Tags.users])
 
 @router.post('/public/users/sign_up', summary="Регистрация")
 async def registration_user(creds: UserRegSchema, db: PgSqlDep, request: Request):
-    insert_attempt = await db.users.reg_user(creds.email, creds.passw, creds.name)
+    insert_attempt = await db.users.reg_user(creds.email, creds.passw)
     if insert_attempt == 'INSERT 0 0':
-        log_event(Events.unluck_registr_user + f" name: {creds.name}; email: {hide_log_param(creds.email)}", request=request, level='WARNING')
+        log_event(Events.unluck_registr_user + f" email: {hide_log_param(creds.email)}", request=request, level='WARNING')
         raise HTTPException(status_code=409, detail='Пользователь уже существует')
-    log_event(Events.registr_user + f" name: {creds.name}, email: {hide_log_param(creds.email)}", request=request)
+    log_event(Events.registr_user + f" email: {hide_log_param(creds.email)}", request=request)
     return {'success': True, 'message': 'Пользователь добавлен'}
 
 
@@ -36,7 +36,7 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
         token_schema = TokenPayloadSchema(
             id=db_user['id'],
             user_agent=request.headers.get('user-agent'),
-            ip=request.client.host
+            ip=request.state.client_ip
         )
         access_token, refresh_token = await issue_aT_rT(db,token_schema)
 
@@ -49,7 +49,8 @@ async def log_in(creds: UserLogInSchema, response: Response, db: PgSqlDep, reque
 
 
 @router.put('/private/users/logout')
-async def log_out(request: Request, response: Response):
+async def log_out(request: Request, response: Response, db: PgSqlDep):
+    await db.auth.session_termination(request.state.user_id, request.state.session_id)
     response.delete_cookie('access_token')
     response.delete_cookie('refresh_token')
     log_event("Пользователь разлогинился | user_id: %s; s_id: %s", request.state.user_id, request.state.session_id, request=request)

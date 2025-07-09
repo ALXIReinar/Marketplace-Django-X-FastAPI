@@ -31,7 +31,7 @@ class ValidatePasswSchema(BaseModel):
                 uppercase = True
 
         if spec_spell and digit and uppercase:
-            return passw.encode()
+            return passw
         raise ValueError('Password does not match the conditions: 1 Spec char, 1 digit, 1 Uppercase letter')
 
 class UpdatePasswSchema(ValidatePasswSchema):
@@ -43,7 +43,6 @@ class UserLogInSchema(BaseModel):
 
 class UserRegSchema(ValidatePasswSchema):
     email: EmailStr
-    name: Annotated[str | None, Field(default='Пользователь Pied Market')]
 
 class RecoveryPasswSchema(BaseModel):
     email: EmailStr
