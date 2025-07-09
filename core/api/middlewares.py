@@ -8,31 +8,38 @@ from fastapi import Request, Response
 from starlette.responses import JSONResponse
 
 from core.config_dir.logger import log_event
-from core.data.postgre import init_pool
+from core.data.postgre import set_connection, PgSql
+from core.data.redis_storage import get_redis_connection
 from core.utils.anything import Events
-from core.config_dir.urls_middlewares import apis_dont_need_auth, white_list_postfix, white_list_prefix_cookies, \
-    white_list_prefix
+from core.config_dir.urls_middlewares import white_list_prefix_NO_COOKIES, allowed_ips
+from core.utils.processing_data.ip_taker import get_client_ip
 from core.utils.processing_data.jwt_processing import reissue_aT
 from core.utils.processing_data.jwt_utils.jwt_encode_decode import get_jwt_decode_payload
 
 
 class TrafficCounterMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """
-        Подрубить Редис, чтобы на каждый айпи расставлять счётчик запросов
-        Псевдо-код:
-        ip = request.client.host
-        request_counter = redis.get(ip)
-        if request_counter and request_counter > 250:
-            return JSONResponse(status_code=429, content={'message': 'Превышен лимит обращений за 5 минут. Попробуйте позже'})
-        elif request_counter is None:
-            redis.set(ip, value=0, ttl=300)
+    def __init__(self, app, requests_limit: int = 0, ttl_limit: int = 0):
+        super().__init__(app=app)
+        self.limit = requests_limit
+        self.ttl = ttl_limit
 
-        request_counter += 1
-        """
-        # log_event(Events.lim_requests_ip, request,
-        #           user_id=request.state.user_id if hasattr(request.state, 'user_id') else '',
-        #           s_id=request.state.session_id if hasattr(request.state, 'session_id') else '')
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        ip = get_client_ip(request)
+        request.state.client_ip = ip
+        if ip in allowed_ips:
+            return await call_next(request)
+
+        async with get_redis_connection() as redis:
+            request_counter = await redis.get(ip)
+            if request_counter and int(request_counter.decode()) >= self.limit:
+                log_event('Отброшен за превышение обращений!', level='CRITICAL')
+                return JSONResponse(status_code=429, content={'message': 'Превышен лимит обращений. Попробуйте позже'})
+            elif request_counter is None:
+                await redis.set(ip, value=1, ex=self.ttl)
+                log_event('Добавлен в Трафик-лист: ip %s; user-agent: %s', ip, request.headers.get('user-agent'))
+            else:
+                to_disappear = await redis.ttl(ip)
+                await redis.set(ip, value=int(request_counter.decode()) + 1, ex=to_disappear)
         return await call_next(request)
 
 
@@ -48,20 +55,20 @@ class LoggingTimeMiddleware(BaseHTTPMiddleware):
 class AuthUxMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         now = datetime.utcnow()
-        url = request.url.path
         request.state.user_id = 1
         request.state.session_id = '1'
-        if (url in apis_dont_need_auth or
-            any(tuple(url.endswith(postfix) for postfix in white_list_postfix)) or
 
-            any(tuple(url.startswith(prefix) for prefix in white_list_prefix)) or
+        url = request.url.path
+        ip = request.state.client_ip
 
-          (any(tuple(url.startswith(prefix) for prefix in white_list_prefix_cookies)) and not request.cookies)
-        ):
-
-            log_event(Events.white_list_url + " | cookies: %s", request.cookies.keys(), request=request, level='WARNING')
+        "Веб-адреса или запросы Сервера"
+        if not url.startswith('/api') or ip in allowed_ips:
+            log_event(Events.white_list_url, request=request)
             return await call_next(request)
-
+        "Не нуждаются в авторизации, Если нет кук"
+        if not request.cookies and any(tuple(url.startswith(prefix) for prefix in white_list_prefix_NO_COOKIES)):
+            log_event(Events.white_list_url, request=request, level='WARNING')
+            return await call_next(request)
 
 
         encoded_access_token = request.cookies.get('access_token')
@@ -71,10 +78,10 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=401, content={'message': 'Нужна повторная аутентификация'})
         if datetime.utcfromtimestamp(access_token['exp']) < now:
             # аксес_токен ИСТЁК
-
-
             "процесс выпуска токена"
-            async with init_pool() as db:
+            pool = await set_connection()
+            async with pool.acquire() as conn:
+                db = PgSql(conn)
                 refresh_token = request.cookies.get('refresh_token')
                 new_token = await reissue_aT(access_token, refresh_token, db)
             if new_token == 401:
@@ -86,20 +93,3 @@ class AuthUxMiddleware(BaseHTTPMiddleware):
         request.state.user_id = int(access_token['sub'])
         request.state.session_id = access_token['s_id']
         return await call_next(request)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

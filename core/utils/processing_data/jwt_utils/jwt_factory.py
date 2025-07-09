@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from core.config_dir.config import encryption, env
-from core.config_dir.logger import log_event
 from core.data.postgre import PgSqlDep
 from core.schemas.user_schemas import TokenPayloadSchema
 from core.utils.anything import token_types, TokenTypes
@@ -30,8 +29,7 @@ async def issue_token(
         token: TokenTypes | str,
         db: PgSqlDep = None,
         session_id: str | None=None,
-        client: TokenPayloadSchema=None,
-
+        client: TokenPayloadSchema=None
 ):
     if token_types[token] == TokenTypes.refresh_token:
         rT = add_ttl_limit(payload, token)

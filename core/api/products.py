@@ -1,4 +1,3 @@
-from celery.result import AsyncResult
 from fastapi import APIRouter, Request
 
 from core.bg_tasks.celery_processing import lvl1_render, lvl2_render, lvl3_render
@@ -17,8 +16,8 @@ async def preview_products(pagen: PagenDep, request: Request, db: PgSqlDep):
 
     records = await db.products.welcome_page_select(user_id, pagen.offset, pagen.limit)
     return {'products': records.products,
-            'counters': [
-                {'favorite': records.favorite}, {'ordered_items': records.ordered_items}]
+            'counters': {
+                'favorite': records.favorite, 'ordered_items': records.ordered_items, 'chats': records.chats}
             }
 
 
@@ -38,11 +37,11 @@ async def get_product_card(
     else:    log_event(Events.bg_product_stage_.format('0' + f' | cached! | prd_id: {prd_id}'), request=request)
 
     log_event("Сразу 2 уровня фона! | " + f"user_id: {user_id}; prd_id: {prd_id}; seller_id: {seller_id}", request=request)
-    task_1lvl_bg = lvl1_render.apply_async(args=[prd_id, in_front_cache, user_id])
-    task_2lvl_bg = lvl2_render.apply_async(args=[prd_id, seller_id])
+    task_1lvl_bg = lvl1_render.delay(prd_id, in_front_cache, user_id)
+    task_2lvl_bg = lvl2_render.delay(prd_id, seller_id)
     return {'instantly_data': product_inst_part,
             'task-bg_lvl_1': task_1lvl_bg.id,
-            'task-bg_lvl_2': task_2lvl_bg.id, }
+            'task-bg_lvl_2': task_2lvl_bg.id }
 
 
 @router.get('/bg_lvl3/{prd_id}')

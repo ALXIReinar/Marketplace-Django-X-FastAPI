@@ -19,6 +19,7 @@ class Tags:
     orders = 'Заказы'
     elastic_products = 'Товары *Elastic🔎*'
     celery_bg = 'Celery Фон🥬🐇'
+    crons = 'Отложенные задачи🕟'
     chat = 'Мессенджер💬'
     file_reader = 'Файловое Хранилище🗂'
 
@@ -45,19 +46,11 @@ class Events:
 
     bg_send_mail = "Отправка Письма | "
 
+    periodic_cron = 'Крона запущена | '
+    cron_completed = 'Регулярная таска выполнена | '
+
     TEST = "Логи работают!"
     plug = ''
-
-@dataclass
-class WSControl:
-    open: str = 'view_chat'
-    close: str = 'close_chat'
-    ws_chat_channel: str = 'chat'
-    send_msg: str = 'send_msg'
-    last_messages: str = 'last_messages_layout'
-    get_file: str = 'get_file'
-    save_file: str = 'save_file'
-
 
 @dataclass
 class TokenTypes:
@@ -116,20 +109,8 @@ def create_log_dirs():
     LOG_DIR.mkdir(exist_ok=True)
     (LOG_DIR / 'info_warning_error').mkdir(exist_ok=True, parents=True)
     (LOG_DIR / 'critical').mkdir(exist_ok=True, parents=True)
-
-def create_debug_log_dir():
-    LOG_DIR = Path('logs')
-    LOG_DIR.mkdir(exist_ok=True)
     (LOG_DIR / 'debug').mkdir(exist_ok=True, parents=True)
 
-
-copy_query_PRODUCTS_BY_ID = '''
-SELECT p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days, COUNT(c.id) AS count_coms, ROUND(AVG(c.rate), 1) AS avg_rate FROM products p
-LEFT JOIN comments c ON c.prd_id = p.id
-JOIN images_prdts img ON img.prd_id = p.id AND img.title_img = true
-JOIN details_prdts d_p ON d_p.prd_id = p.id 
-WHERE p.id IN ({})
-AND p.remain > 0
-GROUP BY p.id, p.seller_id, p.prd_name, p.cost, p.remain, img.path, d_p.delivery_days
-'''
-
+def create_bg_files_dir():
+    BG_FILES_DIR = Path('user_files_bg_dumps')
+    BG_FILES_DIR.mkdir(exist_ok=True)

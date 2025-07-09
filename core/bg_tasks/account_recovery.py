@@ -1,16 +1,21 @@
 from random import randint
 from email.message import EmailMessage
 
-from asyncpg import Record
+from fastapi import APIRouter
 from pydantic import EmailStr
+from starlette.requests import Request
 
 from core.config_dir.config import smtp, env
 from core.config_dir.logger import log_event
-from core.data.redis_storage import get_redis_connection
+from core.data.redis_storage import RedisDep
+from core.schemas.user_schemas import RecoveryPrepareSchema
 from core.utils.anything import mail_ptn_forget_password_TEXT, mail_ptn_forget_password_HTML, hide_log_param
 
+router = APIRouter(prefix='/public/bg_tasks')
 
-async def send_confirm_code(to: EmailStr | str, user_name: str, code: str):
+
+
+def send_confirm_code(to: EmailStr | str, user_name: str, code: str):
     receiver = '' if user_name == 'Пользователь Pied Market' else f', {user_name}'
     content = mail_ptn_forget_password_TEXT.format(receiver, code)
 
@@ -18,16 +23,17 @@ async def send_confirm_code(to: EmailStr | str, user_name: str, code: str):
     msg['To'], msg['From'], msg['Subject'] = to, env.mail_sender, 'Восстановление пароля на Pied Market'
     msg.set_content(content)
     msg.add_alternative(mail_ptn_forget_password_HTML.format(receiver, code), subtype='html')
+    return msg
 
-    log_event(f"Отправка Письма | email: %s; user_name: %s; code: %s", hide_log_param(to), receiver, code)
-    async with smtp:
-        await smtp.send_message(msg)
-
-
-async def prepare_mail(email: EmailStr, user: Record, reset_token: str):
-    if user:
+@router.post('/email_check')
+async def prepare_mail(recovery_obj: RecoveryPrepareSchema, request: Request, redis: RedisDep):
+    if recovery_obj.user:
         confirm_code = str(randint(100_000, 999_999))
-        async with get_redis_connection() as redis:
-            await redis.set(reset_token, user['id'], ex=600)
-            await redis.set(str(user['id']), confirm_code, ex=630)
-        await send_confirm_code(email, user['name'], confirm_code)
+        await redis.set(recovery_obj.reset_token, recovery_obj.user['id'], ex=600)
+        await redis.set(str(recovery_obj.user['id']), confirm_code, ex=630)
+
+        msg = send_confirm_code(recovery_obj.email, recovery_obj.user['name'], confirm_code)
+        async with smtp as smtp_conn:
+            await smtp_conn.send_message(msg)
+        log_event(f"Отправка Письма | email: %s; user_name: %s; code: %s",
+                  hide_log_param(recovery_obj.email), env.mail_sender, confirm_code, request=request)

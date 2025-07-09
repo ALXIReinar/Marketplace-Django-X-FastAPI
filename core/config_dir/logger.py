@@ -9,10 +9,10 @@ from starlette.requests import Request
 from starlette.websockets import WebSocket
 
 from core.config_dir.config import WORKDIR
-from core.utils.anything import create_log_dirs, Events, create_debug_log_dir
+from core.utils.anything import create_log_dirs, Events
+from core.utils.processing_data.ip_taker import get_client_ip
 
 create_log_dirs()
-create_debug_log_dir()
 LOG_DIR = Path(WORKDIR) / 'logs'
 
 
@@ -144,9 +144,10 @@ def log_event(event: Events | str, *args, request: Request | WebSocket=None, lev
 
     meth, url, ip = '', '', ''
     if isinstance(request, Request):
-        meth, url, ip = request.method, request.url, request.client.host
+        meth, url = request.method, request.url
+        ip = request.state.client_ip if hasattr(request.state, 'client_ip') else get_client_ip(request)
     elif isinstance(request, WebSocket):
-        url, ip = request.url, request.client.host
+        url, ip = request.url, get_client_ip(request)
 
     message = event % args if args else event
 

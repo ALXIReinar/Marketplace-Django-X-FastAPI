@@ -27,8 +27,7 @@ class ValidatePasswSchema(BaseModel):
             if ch.isdigit():
                 digit = True
             elif ch in {'.', ';', '\\', '!', '_', '/', '&', ')', '>', '$', '*', '}', '=', ',', '[', '#', '%', '~', ':',
-                        '{',
-                        ']', '?', '@', "'", '(', '`', '"', '^', '|', '<', '-', '+'}:
+                        '{', ']', '?', '@', "'", '(', '`', '"', '^', '|', '<', '-', '+'}:
                 spec_spell = True
             elif ch == ch.upper():
                 uppercase = True
@@ -56,3 +55,7 @@ class TokenPayloadSchema(BaseModel):
     id: int
     user_agent: str = Field(max_length=512)
     ip: str = Field(max_length=39)
+
+class RecoveryPrepareSchema(RecoveryPasswSchema):
+    user: dict
+    reset_token: str

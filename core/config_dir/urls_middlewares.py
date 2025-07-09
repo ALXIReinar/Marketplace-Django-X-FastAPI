@@ -1,13 +1,16 @@
-apis_dont_need_auth = {
-    '/docs',
-    '/',
+white_list_prefix_NO_COOKIES = [
+    '/api/products',
+    '/api/public',
+    '/api/favorites',
+    '/api/orders',
+]
 
-    '/api/users/sign_up',
-    '/api/users/login',
-
+allowed_ips = {
+    '127.0.0.1',
+    '172.25.0.1',
+    '172.25.0.14', # селери воркер
+    '172.25.0.15', # селери бит
+    '172.25.0.19'  # web-app(fastapi)
 }
-white_list_postfix = ['.html', '.css', '.png', '.jpg', '.ico', '.json']
 
-white_list_prefix = ['/api/bg_tasks/', '/api/users/passw/']
-
-white_list_prefix_cookies = ['/api/products/', '/api/favorites/', '/api/orders']
+trusted_proxies = {'127.0.0.1', '172.25.0.1',}

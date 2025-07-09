@@ -9,7 +9,16 @@ from core.utils.processing_data.jwt_utils.jwt_factory import issue_token
 
 
 async def issue_aT_rT(db: PgSqlDep, token_schema: TokenPayloadSchema):
-    session_id = str(uuid4())
+    session_id = await db.auth.check_exist_session(token_schema.id, token_schema.user_agent)
+    if session_id:
+        session_id = session_id['session_id']
+        log_event('Существующая сессия: user_id: %s; s_id: %s; ip: %s', token_schema.id, session_id, token_schema.ip)
+    else:
+        session_id = str(uuid4())
+        log_event('Новая сессия | user_id: %s; user_agent: %s; ip: %s',
+                  token_schema.id, token_schema.user_agent, token_schema.ip)
+
+
     frame_token = {
         'sub': str(token_schema.id),
     }

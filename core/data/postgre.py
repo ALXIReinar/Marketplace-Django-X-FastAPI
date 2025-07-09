@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from typing import Annotated, AsyncGenerator
 from asyncpg import Connection, create_pool, Pool
 
@@ -23,7 +22,6 @@ class PgSql:
 
         self.products = ProductsQueries(conn)
         self.extended_product = ExtendedProduct(conn)
-        self.chats = ChatQueries(conn)
 
 
 connection: Optional[Pool] = None
@@ -32,12 +30,6 @@ async def set_connection():
     if connection is None:
         connection = await create_pool(**pool_settings)
     return connection
-
-@asynccontextmanager
-async def init_pool():
-    pool = await set_connection()
-    async with pool.acquire() as session:
-        yield PgSql(session)
 
 
 async def set_session(request: Request) -> AsyncGenerator[Connection, None]:

@@ -1,14 +1,33 @@
+from contextlib import asynccontextmanager
+
 import uvicorn
 from asyncpg import create_pool
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from core.api.middlewares import LoggingTimeMiddleware, TrafficCounterMiddleware, AuthUxMiddleware
 from core.api import main_router
+from core.bg_tasks import bg_router
 
-from core.config_dir.config import app, pool_settings, broadcast, env
+from core.config_dir.config import pool_settings, broadcast, env, get_uvicorn_host
+
+
+
+@asynccontextmanager
+async def lifespan(web_app):
+    web_app.state.pg_pool = await create_pool(**pool_settings)
+    await broadcast.connect()
+    try:
+        yield
+    finally:
+        await web_app.state.pg_pool.close()
+        await broadcast.disconnect()
+
+app = FastAPI(docs_url='/api/docs', openapi_url='/api/openapi.json', lifespan=lifespan)
 
 app.include_router(main_router)
+app.include_router(bg_router)
 
 "Миддлвари"
 app.add_middleware(
@@ -17,23 +36,14 @@ app.add_middleware(
     allow_methods=['GET', 'POST', 'PUT', 'DELETE'],
     allow_headers=['*']
 )
-# app.add_middleware(TrafficCounterMiddleware)
-app.add_middleware(AuthUxMiddleware)
 app.add_middleware(LoggingTimeMiddleware)
+app.add_middleware(AuthUxMiddleware)
+app.add_middleware(TrafficCounterMiddleware, requests_limit=env.requests_limit, ttl_limit=env.ttl_requests_limit)
 
-@app.on_event('startup')
-async def startup():
-    app.state.pg_pool = await create_pool(**pool_settings)
-    await broadcast.connect()
-
-@app.on_event('shutdown')
-async def shutdown():
-    await app.state.pg_pool.close()
-    await broadcast.disconnect()
 
 app.mount('/', StaticFiles(directory=f'{env.abs_path}/core/templates', html=True), name='frontend')
 app.mount('/', StaticFiles(directory=f'{env.abs_path}/core/templates/images'), name='pic_s')
 
 
 if __name__ == '__main__':
-    uvicorn.run('core.main:app', host=env.uvicorn_host_docker if env.dockerized else env.uvicorn_host, port=8000, log_config=None)
+    uvicorn.run('core.main:app', host=get_uvicorn_host(), port=8000, log_config=None)
