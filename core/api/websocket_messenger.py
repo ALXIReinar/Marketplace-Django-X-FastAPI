@@ -152,7 +152,7 @@ async def absorb_binary(
         content_path=db_file_name,
         reply_id=file_hint.reply_id
     )
-    saved_msg_json['file_name'] = uniq_id
+    saved_msg_json['file_name'] = f'{uniq_id}{ext}'
     log_event('Файл Сохранён локально!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
     return {'success': True, 'message': 'Сохранено, лови uuid!'}
@@ -226,7 +226,7 @@ async def save_to_bucket(
         content_path=db_file_name,
         reply_id=file_hint.reply_id
     )
-    saved_msg_json['file_name'] = uniq_id
+    saved_msg_json['file_name'] = f'{uniq_id}{ext}'
     log_event('Файл Сохранён в Облако!: %s; user_id: %s; chat_id: %s', file_hint.file_name, request.state.user_id, file_hint.chat_id, request=request)
     await broadcast.publish(f'{WSControl.ws_chat_channel}:{file_hint.chat_id}', message=json.dumps(saved_msg_json))
     return {'success': True, 'message': 'Сохранено, лови uuid!'}

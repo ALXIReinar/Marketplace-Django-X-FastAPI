@@ -79,5 +79,5 @@ class WSPresignedLinkSchema(BaseModel):
 
 class WSPingS3Schema(BaseModel):
     key: str
-    timeout: float = Field(default=60.0)
+    timeout: float = Field(default=90.0)
     interval: float = Field(default=1.5)

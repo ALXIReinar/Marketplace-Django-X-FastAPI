@@ -3,7 +3,8 @@ from celery.schedules import crontab
 from kombu import Exchange, Queue
 from kombu.serialization import register
 
-from core.config_dir.config import env, redis_connective_pairs, rabbit_connective_pairs, get_uvicorn_host
+from core.config_dir.config import env, redis_connective_pairs, rabbit_connective_pairs, get_uvicorn_host, \
+    get_uvicorn_port
 from core.utils.anything import create_bg_files_dir
 from core.utils.celery_serializer import json_loads, json_dumps
 
@@ -17,7 +18,7 @@ register(
     content_encoding='utf-8'
 )
 
-bg_link = f'{env.transfer_protocol}://{get_uvicorn_host()}:8000/api'
+bg_link = f'{env.transfer_protocol}://{get_uvicorn_host()}:{get_uvicorn_port()}/api'
 broker = f"pyamqp://{rabbit_connective_pairs['user']}@{rabbit_connective_pairs['host']}//"
 backend_result = f"redis://{redis_connective_pairs['host']}:{redis_connective_pairs['port']}/0"
 
@@ -70,7 +71,7 @@ celery_bg.conf.beat_schedule = {
     },
     'trash_messages_cleaner': {
         'task': 'core.bg_tasks.celery_processing.run_messages_cleaner',
-        'schedule': crontab(day_of_week=4)
+        'schedule': crontab(day_of_week=4, hour=3, minute=0)
     },
     's3_kharon': {
         'task': 'core.bg_tasks.celery_processing.transfer_to_s3',

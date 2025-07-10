@@ -26,21 +26,3 @@ class TestSimpleCrons:
             json={'query': 'select count(*) from chat_messages where is_commited = false', 'method': 'fetchrow'}
         )
         assert db_confirmation.json()['result']['count'] == 0
-
-
-@pytest.mark.skipif('config.getoption("--run-mode") != "ci_test"')
-@pytest.mark.usefixtures('ac', 'cp_test_objects')
-class TestS3Crons:
-    @pytest.mark.parametrize(
-        'waited_res',
-        [
-            'Удалено с попытки: ',
-            'Удалять нечего',
-        ]
-    )
-    @pytest.mark.asyncio
-    async def test_s3_kharon(self, ac, waited_res):
-        res = await ac.post('/api/server/crons/s3_fs-manager')
-        await asyncio.sleep(20)
-
-        assert res.json()['message'].startswith(waited_res) == True

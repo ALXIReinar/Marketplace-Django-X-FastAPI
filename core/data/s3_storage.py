@@ -35,7 +35,7 @@ class S3StorageAsync:
                 ContentLength=content_length
             )
         except Exception as e:
-            log_event('Ошибка сохранения файла в С3! | %s', e, level='CRITICAL')
+            log_event(f'Ошибка сохранения файла в С3! | {e}', level='CRITICAL')
             raise HTTPException(status_code=504, detail={'success': False, 'message': 'Ошибка загрузки файла'})
         log_event('Записан Файл в S3 \033[35m(Уровень Облака)\033[0m | file: %s', file_path)
 
@@ -57,13 +57,13 @@ class S3StorageAsync:
     async def ping_object(self, file_key: str, bucket_name: str):
         try:
             await self.session.head_object(Key=f'{env.cloud_storage}/{file_key}', Bucket=bucket_name)
-            log_event('Файл в S3, процесс удаления в ФС | %s', file_key, level='WARNING')
+            log_event('Файл в S3 | %s', file_key, level='WARNING')
             return True
         except ClientError as e:
             if e.response['Error']['Code'] == '404':
                 log_event('Файла нет в S3: %s', file_key)
             else:
-                log_event('Произошло нечто иное, времени прошло: %s | file_key: %s | Exception: %s', file_key, e.response, level='CRITICAL')
+                log_event(f'Произошло нечто иное | file_key: {file_key} | Exception: {e.response}', level='CRITICAL')
         return False
 
 

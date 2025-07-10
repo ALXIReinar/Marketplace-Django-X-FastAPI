@@ -95,6 +95,8 @@ class Settings(BaseSettings):
     internal_host: str
     uvicorn_host: str
     uvicorn_host_docker: str
+    uvicorn_port: int
+    uvicorn_port_test: int
 
     requests_limit: int
     ttl_requests_limit: int
@@ -105,6 +107,7 @@ class Settings(BaseSettings):
     cloud_db: bool = os.getenv('CLOUD_DB', False)
     docker_es: bool = os.getenv('DOCKER_ES', False)
     celery_worker: bool = os.getenv('CELERY_WORKER', False)
+    test_celery_worker: bool = os.getenv('TEST_CELERY_WORKER', False)
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
 
@@ -121,6 +124,12 @@ def get_uvicorn_host(env=env):
     elif env.dockerized:
         uvi_host = env.internal_host
     return uvi_host
+
+def get_uvicorn_port(env=env):
+    uvi_port = env.uvicorn_port
+    if env.test_celery_worker:
+        uvi_port = env.uvicorn_port_test
+    return uvi_port
 
 
 "ElasticSearch"
