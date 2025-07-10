@@ -6,13 +6,13 @@ from core.config_dir.logger import log_event
 @pytest.mark.parametrize(
     'cookies, counters, len_layout',
     [
-        ({'access_token': '2', 'refresh_token': 'test_session1'}, (4, 0, 2), 3),
-        ({'access_token': '3', 'refresh_token': 'test_session2'}, (0, 2, 2), 2),
+        ({'access_token': '2', 'refresh_token': 'test_session1'}, (4, 0, 1), 3),
+        ({'access_token': '3', 'refresh_token': 'test_session2'}, (0, 2, 1), 2),
     ]
 )
 @pytest.mark.asyncio
-async def test_index_page(prod_ac, xff_ip, cookies, counters, len_layout):
-    res = (await prod_ac.post(
+async def test_index_page(ac, xff_ip, cookies, counters, len_layout):
+    res = (await ac.post(
         '/api/products/',
         cookies=cookies,
         headers=xff_ip,

@@ -77,7 +77,7 @@ async def auth_ac_methods(auth_ac):
 
 @pytest_asyncio.fixture(scope='session', autouse=True)
 async def prepare_elasticsearch(uvicorn_test_server, run_mode):
-    if run_mode == 'elastic':
+    if run_mode == 'ci_test':
         aioes = AsyncElasticsearch(**get_host_port_ES())
         await aioes.indices.delete(index='test_index1')
         await aioes.close()

@@ -25,7 +25,7 @@ class ValidatePasswSchema(BaseModel):
             if ch.isdigit():
                 digit = True
             elif ch in {'.', ';', '\\', '!', '_', '/', '&', ')', '>', '$', '*', '}', '=', ',', '[', '#', '%', '~', ':',
-                        '{', ']', '?', '@', "'", '(', '`', '"', '^', '|', '<', '-', '+'}:
+                        '{', ']', '?', '@', "'", '(', '`', '"', '^', '|', '<', '-', '+', '№'}:
                 spec_spell = True
             elif ch == ch.upper():
                 uppercase = True

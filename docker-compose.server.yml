@@ -48,7 +48,7 @@ services:
 
   celery_worker:
     container_name: celery_worker_pied_market
-    image: alxireinar/marketplace_pied_market
+    image: marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue,file_queue
     environment:
       - DEPLOYED=1
@@ -68,7 +68,7 @@ services:
 
   celery_beat:
     container_name: celery_beat_pied_market
-    image: alxireinar/marketplace_pied_market
+    image: marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -B
     environment:
       - DEPLOYED=1
@@ -137,7 +137,7 @@ services:
 
   pied_market:
     container_name: pied_marketplace
-    image: alxireinar/marketplace_pied_market
+    image: marketplace_pied_market
     command: python core/main.py
     depends_on:
       - pg_db

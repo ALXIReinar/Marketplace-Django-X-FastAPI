@@ -3,8 +3,6 @@ services:
     image: redis:7.2.9
     container_name: redis_pied_market
     command: redis-server
-    ports:
-      - '6378:6379'
     networks:
       net_con:
         ipv4_address: 172.25.0.11
@@ -12,12 +10,14 @@ services:
   rabbitmq:
     container_name: rabbitmq_pied_market
     image: rabbitmq:3.12-management
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSW}
-    ports:
-      - '5672:5672'
-      - '15672:15672'
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -29,18 +29,14 @@ services:
 
   celery_worker:
     container_name: celery_worker_pied_market
-    build: .
-    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue,file_queue,celery -B
+    image: marketplace_pied_market
+    command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue,file_queue,celery
     environment:
+      - TEST_CELERY_WORKER=1
       - DOCKERIZED=1
       - CELERY_WORKER=1
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-    develop:
-      watch:
-        - target: /app
-          path: ./core
-          action: sync+restart
     depends_on:
       - rabbitmq
       - redis
@@ -53,21 +49,24 @@ services:
   pg_db:
     container_name: pg_db_pied_market
     image: postgres:16
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     env_file:
-      - ./.env
+      - ./.env.test
     environment:
       - POSTGRES_USER=${PG_USER}
       - POSTGRES_PASSWORD=${PG_PASSWORD}
       - POSTGRES_DB=${PG_DB}
     restart: on-failure
-    ports:
-      - '5431:5432'
     networks:
       net_con:
         ipv4_address: 172.25.0.13
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
+      - ./dumps/marketplace_backup_test.sql:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
 
   smtp_service:
     image: rnwood/smtp4dev
@@ -76,48 +75,54 @@ services:
       - ServerOptions__TlsCertificateFile=${SMTP_CERT_DOCKER}
       - ServerOptions__TlsKeyFile=${SMTP_KEY_DOCKER}
       - ServerOptions__TlsMode=StartTls
-    ports:
-      - "2525:25"
-      - "3000:80"
     networks:
       net_con:
         ipv4_address: 172.25.0.15
 
-#  es01:
-#    depends_on:
-#      - pg_db
-#    container_name: es_pied_market
-#    image: elasticsearch:${ELASTIC_VERSION}
-#    environment:
-#      - node.name=es01
-#      - discovery.type=single-node
-#      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-#
-#      - xpack.security.enabled=false
-#      - xpack.security.http.ssl.enabled=false
-#      - xpack.security.transport.ssl.enabled=false
-#    mem_limit: 3g
-#    volumes:
-#      - esdata01:/usr/share/elasticsearch/data
-#      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
-#    ports:
-#      - '9200:9200'
-#    networks:
-#      net_con:
-#        ipv4_address: 172.25.0.16
-#
-#  kibana:
-#    depends_on:
-#      - es01
-#    container_name: kibana_pied_market
-#    image: kibana:${ELASTIC_VERSION}
-#    environment:
-#      - ELASTICSEARCH_HOSTS=http://es01:${ELASTIC_PORT}
-#    ports:
-#      - '5602:5601'
-#    networks:
-#      net_con:
-#        ipv4_address: 172.25.0.17
+  es01:
+    depends_on:
+      - pg_db
+    container_name: es_pied_market
+    image: elasticsearch:${ELASTIC_VERSION}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    environment:
+      - node.name=es01
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    mem_limit: 3g
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+    networks:
+      net_con:
+        ipv4_address: 172.25.0.16
+
+  pied_market:
+    container_name: pied_marketplace
+    image: marketplace_pied_market
+    command: pytest -v -s
+    depends_on:
+      pg_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+    env_file:
+      - ./.env.test
+    environment:
+      - DOCKERIZED=1
+    networks:
+      net_con:
+        ipv4_address: 172.25.0.19
 
 
 networks:

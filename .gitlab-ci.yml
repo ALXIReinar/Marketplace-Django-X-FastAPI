@@ -1,0 +1,19 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build-job:
+  stage: build
+  script:
+    - docker build -t marketplace_pied_market .
+
+test-job:
+  stage: test
+  script:
+    - docker compose -f docker-compose.ci_test.yml up --build --abort-on-container-exit --exit-code-from pied_market
+
+deploy-job:
+  stage: deploy
+  script:
+    - docker compose -f docker-compose.server.yml up -d

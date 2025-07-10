@@ -3,7 +3,7 @@ import pytest
 from core.config_dir.logger import log_event
 
 
-@pytest.mark.usefixtures("prod_ac")
+@pytest.mark.usefixtures("ac")
 class TestOrders:
     @pytest.mark.parametrize(
         'cookies_vals, counters',
@@ -13,8 +13,8 @@ class TestOrders:
         ]
     )
     @pytest.mark.asyncio
-    async def test_orders_counters(self, prod_ac, xff_ip, cookies_vals, counters):
-        res = await prod_ac.get(
+    async def test_orders_counters(self, ac, xff_ip, cookies_vals, counters):
+        res = await ac.get(
             '/api/orders/',
             cookies={'access_token': cookies_vals[0], 'refresh_token': cookies_vals[1]},
             headers=xff_ip
@@ -33,8 +33,8 @@ class TestOrders:
         ]
     )
     @pytest.mark.asyncio
-    async def test_orders_tab(self, prod_ac, xff_ip, tab, cookies_vals, len_waited_json):
-        res = await prod_ac.get(
+    async def test_orders_tab(self, ac, xff_ip, tab, cookies_vals, len_waited_json):
+        res = await ac.get(
             '/api/orders/sections',
             headers=xff_ip,
             cookies={'access_token': cookies_vals[0], 'refresh_token': cookies_vals[1]},
@@ -50,8 +50,8 @@ class TestOrders:
         ]
     )
     @pytest.mark.asyncio
-    async def test_buy_again_products(self, prod_ac, xff_ip, cookies_vals, waited_len_json):
-        res = await prod_ac.get(
+    async def test_buy_again_products(self, ac, xff_ip, cookies_vals, waited_len_json):
+        res = await ac.get(
             '/api/orders/purchased',
             headers=xff_ip,
             cookies={'access_token': cookies_vals[0], 'refresh_token': cookies_vals[1]},
@@ -60,7 +60,7 @@ class TestOrders:
         assert len(res.json()['purchased_products']) == waited_len_json
 
 
-@pytest.mark.usefixtures("prod_ac")
+@pytest.mark.usefixtures("ac")
 class TestFavorite:
     @pytest.mark.parametrize(
         'cookies_vals, waited_len_json',
@@ -70,8 +70,8 @@ class TestFavorite:
         ]
     )
     @pytest.mark.asyncio
-    async def test_layout_favorite(self, prod_ac, xff_ip, cookies_vals, waited_len_json):
-        res = await prod_ac.get(
+    async def test_layout_favorite(self, ac, xff_ip, cookies_vals, waited_len_json):
+        res = await ac.get(
             '/api/favorites/',
             cookies={'access_token': cookies_vals[0], 'refresh_token': cookies_vals[1]},
             headers=xff_ip,

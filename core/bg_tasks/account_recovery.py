@@ -37,3 +37,6 @@ async def prepare_mail(recovery_obj: RecoveryPrepareSchema, request: Request, re
             await smtp_conn.send_message(msg)
         log_event(f"Отправка Письма | email: %s; user_name: %s; code: %s",
                   hide_log_param(recovery_obj.email), env.mail_sender, confirm_code, request=request)
+        return {'success': True, 'message': 'Эмайл с кодом отправлен'}
+    log_event('Пользователь ввёл несуществующую почту: %s', recovery_obj.email, request=request, level='WARNING')
+    return {'success': False, 'message': f'{recovery_obj.email} - нет в БД'}

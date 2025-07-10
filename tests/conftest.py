@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse
 from core.config_dir.config import pool_settings, get_uvicorn_host
 from core.config_dir.logger import log_event
 from core.config_dir.urls_middlewares import allowed_ips, white_list_prefix_NO_COOKIES
+from core.data.redis_storage import get_redis_connection
 from core.utils.anything import Events
 from core.utils.ping_test_server import wait_conn
 from core.utils.processing_data.ip_taker import get_client_ip
@@ -185,6 +186,11 @@ async def prepare_test_db(pg_db):
         await conn.execute(f"TRUNCATE TABLE {','.join(db_tables)} RESTART IDENTITY CASCADE")
         for query in setup_queries:
             await conn.execute(query)
+
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def flush_redis():
+    async with get_redis_connection() as redis:
+        await redis.flushall()
 
 @pytest.fixture
 def xff_ip():
