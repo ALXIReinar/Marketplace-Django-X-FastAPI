@@ -76,8 +76,3 @@ class WSPresignedLinkSchema(BaseModel):
     event: Literal[WSControl.presigned_url]
     chat_id: int
     file_keys: list[str]
-
-class WSPingS3Schema(BaseModel):
-    key: str
-    timeout: float = Field(default=90.0)
-    interval: float = Field(default=1.5)

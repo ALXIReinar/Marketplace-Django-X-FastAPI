@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     celery_worker: bool = os.getenv('CELERY_WORKER', False)
     test_celery_worker: bool = os.getenv('TEST_CELERY_WORKER', False)
 
-    model_config = SettingsConfigDict(env_file='.env', extra='allow')
+    model_config = SettingsConfigDict(env_file='.env.test' if os.getenv('MODE', False) else '.env.prod', extra='allow')
 
 @lru_cache
 def get_env_vars():
@@ -120,6 +120,8 @@ env = get_env_vars()
 def get_uvicorn_host(env=env):
     uvi_host = env.uvicorn_host
     if env.deployed and env.celery_worker:
+        uvi_host = env.uvicorn_host_docker
+    elif env.deployed:
         uvi_host = env.uvicorn_host_docker
     elif env.dockerized:
         uvi_host = env.internal_host

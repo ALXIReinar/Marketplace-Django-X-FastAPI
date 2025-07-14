@@ -7,13 +7,21 @@ build-job:
   stage: build
   script:
     - docker build -t marketplace_pied_market .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "backend"'
+    - if: '$CI_PIPELINE_SOURCE = "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
 
 test-job:
   stage: test
   script:
     - docker compose -f docker-compose.ci_test.yml up --build --abort-on-container-exit --exit-code-from pied_market
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "backend"'
+    - if: '$CI_PIPELINE_SOURCE = "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
 
 deploy-job:
   stage: deploy
   script:
     - docker compose -f docker-compose.server.yml up -d
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'

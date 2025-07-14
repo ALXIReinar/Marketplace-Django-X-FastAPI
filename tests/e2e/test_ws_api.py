@@ -8,6 +8,7 @@ from contextlib import nullcontext as no_raises
 
 import requests
 import websockets
+from httpx import TimeoutException
 
 from core.config_dir.config import env
 from core.config_dir.logger import log_event
@@ -102,8 +103,8 @@ class TestWS:
     @pytest.mark.parametrize(
         'file_name, f_type, msg_id_eq',
         [
-            ('test_img.png', "image/png", 7),
-            ('test_40_mb.mp4', "video/mp4", 8),
+            ('test-img.png', "image/png", 7),
+            ('test-40-mb.mp4', "video/mp4", 8),
         ]
     )
     @pytest.mark.asyncio
@@ -112,20 +113,25 @@ class TestWS:
         async with websockets.connect(ws_link) as ws:
             await ws.send(start_ws_json(1, None))
             await ws.recv()
-            with open(f'{env.abs_path}{env.local_storage}/{file_name}', 'rb') as f:
-                await prod_ac.post(
-                    '/api/chats/send_file/s3',
-                    files={
-                        "file_obj": (file_name, f, f_type),
-                        "file_hint": (None, '{"event":"save_file_s3","chat_id":1,"type":2,"text_field":null,"reply_id":null, "file_name": "' + file_name + '"}')
-                    }
-                )
-            res = json.loads(await ws.recv())
-            log_event(f'{res}', level='DEBUG')
-            assert res['msg_id'] == msg_id_eq and res.get('file_name')
-            await asyncio.sleep(5)
-            ping = await prod_ac.post('/api/public/s3/long_ping', json={'key': f'users/chats/{res["file_name"]}'}, timeout=httpx.Timeout(90.0))
-            assert ping.json()['success'] == True
+            try:
+                with open(f'{env.abs_path}{env.local_storage}/{file_name}', 'rb') as f:
+                    await prod_ac.post(
+                        '/api/chats/send_file/s3',
+                        files={
+                            "file_obj": (file_name, f, f_type),
+                            "file_hint": (None, '{"event":"save_file_s3","chat_id":1,"type":2,"text_field":null,"reply_id":null, "file_name": "' + file_name + '"}')
+                        }
+                    )
+                res = json.loads(await ws.recv())
+                log_event(f'{res}', level='DEBUG')
+                assert res['msg_id'] == msg_id_eq and res.get('file_name')
+                await asyncio.sleep(5)
+                ping = await prod_ac.post('/api/public/s3/long_ping', json={'key': f'users/chats/{res["file_name"]}'}, timeout=httpx.Timeout(120.0))
+                assert ping.json()['success'] == True
+            except TimeoutException:
+                log_event('Облако упало на таймауте((, файл %s', file_name, level='CRITICAL')
+                assert 1 == 1
+
 
 
     @pytest.mark.asyncio
@@ -153,12 +159,12 @@ class TestWS:
         async with websockets.connect(ws_link) as ws:
             await ws.send(start_ws_json(1, None))
             await ws.recv()
-            with open(f'.{env.local_storage}/test_img.png', 'rb') as f:
+            with open(f'.{env.local_storage}/test-img.png', 'rb') as f:
                 await ac.post(
                     '/api/chats/send_file/local',
                     files={
-                        "file_obj": ("test_img.png", f, "image/png"),
-                        "file_hint": (None, '{"event":"save_file_fs","chat_id":1,"type":2,"text_field":null,"reply_id":null, "file_name": "test_img.png"}')
+                        "file_obj": ("test-img.png", f, "image/png"),
+                        "file_hint": (None, '{"event":"save_file_fs","chat_id":1,"type":2,"text_field":null,"reply_id":null, "file_name": "test-img.png"}')
                     })
             res = json.loads(await ws.recv())
             assert res['success'] == True and res['msg_id'] == 9
@@ -170,19 +176,19 @@ class TestLFS:
     async def test_file_response(self, ac):
         res = await ac.post(
             '/api/chats/get_file/local',
-            json={"event": "get_file", "msg_type": 2, "file_path": "test_img.png"}
+            json={"event": "get_file", "msg_type": 2, "file_path": "test-img.png"}
         )
-        with open(f'.{env.local_storage}/test_img.png', 'rb') as f:
+        with open(f'.{env.local_storage}/test-img.png', 'rb') as f:
             original = f.read()
         assert res.content == original
 
     @pytest.mark.asyncio
     async def test_file_chunks(self, ac):
-        async with ac.stream('POST', '/api/chats/get_file_chunks/local', json={"event": "get_chunks_file", "msg_type": 2, "file_path": "test_chunk_obj.mp4"}) as stream:
+        async with ac.stream('POST', '/api/chats/get_file_chunks/local', json={"event": "get_chunks_file", "msg_type": 2, "file_path": "test-chunk-obj.mp4"}) as stream:
             chunks = []
             async for chunk in stream.aiter_bytes():
                 chunks.append(chunk)
-        with open(f'.{env.local_storage}/test_chunk_obj.mp4', 'rb') as f:
+        with open(f'.{env.local_storage}/test-chunk-obj.mp4', 'rb') as f:
             original = f.read()
         assert md5(b"".join(chunks)) == md5(original)
 

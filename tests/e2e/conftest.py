@@ -24,8 +24,8 @@ def md5(data):  return hashlib.md5(data).hexdigest()
 
 @pytest.fixture(scope='session')
 def cp_test_objects():
-    lite_obj = Path(f'{env.abs_path}{env.local_storage}/test_img.png')
-    heavy_obj = Path(f'{env.abs_path}{env.local_storage}/test_40_mb.mp4')
+    lite_obj = Path(f'{env.abs_path}{env.local_storage}/test-img.png')
+    heavy_obj = Path(f'{env.abs_path}{env.local_storage}/test-40-mb.mp4')
     destination = Path(f'{env.abs_path}/{env.bg_users_files}')
 
     shutil.copy(lite_obj, destination)

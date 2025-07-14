@@ -13,4 +13,4 @@ allowed_ips = {
     '172.25.0.19'  # web-app(fastapi)
 }
 
-trusted_proxies = {'127.0.0.1', '172.25.0.1',}
+trusted_proxies = {'127.0.0.1', '172.25.0.1', '172.25.0.19', }

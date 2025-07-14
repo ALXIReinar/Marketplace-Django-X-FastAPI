@@ -29,8 +29,11 @@ services:
 
   celery_worker:
     container_name: celery_worker_pied_market
-    build: .
+#    build: .
+    image: marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue,file_queue,celery -B
+    env_file:
+      - ./.env.prod
     environment:
       - DOCKERIZED=1
       - CELERY_WORKER=1
@@ -55,6 +58,8 @@ services:
   smtp_service:
     image: rnwood/smtp4dev
     container_name: smtp4dev_pied_market
+    env_file:
+      - ./.env.prod
     environment:
       - ServerOptions__TlsCertificateFile=${SMTP_CERT_DOCKER}
       - ServerOptions__TlsKeyFile=${SMTP_KEY_DOCKER}
@@ -66,32 +71,36 @@ services:
       net_con:
         ipv4_address: 172.25.0.13
 
-#  es01:
-#    container_name: es_pied_market
-#    image: elasticsearch:${ELASTIC_VERSION}
-#    environment:
-#      - node.name=es01
-#      - discovery.type=single-node
-#      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-#
-#      - xpack.security.enabled=false
-#      - xpack.security.http.ssl.enabled=false
-#      - xpack.security.transport.ssl.enabled=false
-#    mem_limit: 3g
-#    volumes:
-#      - esdata01:/usr/share/elasticsearch/data
-#      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
-#    ports:
-#      - '9200:9200'
-#    networks:
-#      net_con:
-#        ipv4_address: 172.25.0.15
+  es01:
+    container_name: es_pied_market
+    image: elasticsearch:${ELASTIC_VERSION}
+    env_file:
+      - ./.env.prod
+    environment:
+      - node.name=es01
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    mem_limit: 3g
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+    ports:
+      - '9200:9200'
+    networks:
+      net_con:
+        ipv4_address: 172.25.0.15
 #
 #  kibana:
 #    depends_on:
 #      - es01
 #    container_name: kibana_pied_market
 #    image: kibana:${ELASTIC_VERSION}
+#    env_file:
+#      - ./.env.prod
 #    environment:
 #      - ELASTICSEARCH_HOSTS=http://es01:${ELASTIC_PORT}
 #    ports:

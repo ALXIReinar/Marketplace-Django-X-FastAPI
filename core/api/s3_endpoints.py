@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from core.config_dir.logger import log_event
 from core.data.s3_storage import S3Dep
-from core.schemas.chat_schema import WSPingS3Schema
+from core.schemas.test_api_schemas import WSPingS3Schema
 
 router = APIRouter(prefix='/api/public')
 

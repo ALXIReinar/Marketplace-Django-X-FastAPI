@@ -9,7 +9,7 @@ class TestConnectivePairs:
     @pytest.mark.parametrize(
         'env_pack, waited_vals',
         [
-         ({'CLOUD_DB': '0', 'DOCKER_DB': '0', 'DOCKERIZED': '0', 'CELERY_WORKER': '0'},
+         ({'CLOUD_DB': '0', 'DOCKER_DB': '0', 'DOCKERIZED': '0', 'CELERY_WORKER': '0', 'DEPLOYED': '0'},
           (env.pg_password, env.pg_host, env.pg_port)),
          ({'CLOUD_DB': '0', 'DOCKER_DB': '0', 'DOCKERIZED': '1', 'CELERY_WORKER': '1'},
           (env.pg_password, env.internal_host, env.pg_port)),
@@ -68,7 +68,7 @@ class TestConnectivePairs:
     @pytest.mark.parametrize(
         'env_pack, waited_vals',
         [
-            ({'DOCKERIZED': '0', 'DEPLOYED': '0'}, env.uvicorn_host),
+            ({'DOCKERIZED': '0', 'DEPLOYED': '0', 'CELERY_WORKER': '0'}, env.uvicorn_host),
             ({'DOCKERIZED': '1', 'DEPLOYED': '0'}, env.internal_host),
             ({'DOCKERIZED': '0', 'DEPLOYED': '1', 'CELERY_WORKER': '1'}, env.uvicorn_host_docker),
     ])

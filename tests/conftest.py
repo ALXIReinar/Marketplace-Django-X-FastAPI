@@ -92,7 +92,7 @@ def uvicorn_test_server():
     proccess = subprocess.Popen([
         'uvicorn',
         'core.test_main:test_app',
-        '--host', host,
+        '--host', '0.0.0.0',
         '--port', port
     ])
     wait_conn(host, port)
@@ -113,7 +113,7 @@ def uvicorn_prod_server():
     proccess = subprocess.Popen([
         'uvicorn',
         'core.main:app',
-        '--host', host,
+        '--host', "0.0.0.0",
         '--port', port
     ])
     wait_conn(host, port)

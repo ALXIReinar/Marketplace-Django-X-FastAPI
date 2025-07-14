@@ -10,7 +10,7 @@ from core.api.middlewares import LoggingTimeMiddleware, TrafficCounterMiddleware
 from core.api import main_router
 from core.bg_tasks import bg_router
 
-from core.config_dir.config import pool_settings, broadcast, env, get_uvicorn_host
+from core.config_dir.config import pool_settings, broadcast, env
 
 
 
@@ -46,4 +46,4 @@ app.mount('/', StaticFiles(directory=f'{env.abs_path}/core/templates/images'), n
 
 
 if __name__ == '__main__':
-    uvicorn.run('core.main:app', host=get_uvicorn_host(), port=8000, log_config=None)
+    uvicorn.run('core.main:app', host="0.0.0.0", port=8000, log_config=None)

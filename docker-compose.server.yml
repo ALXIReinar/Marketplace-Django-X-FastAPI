@@ -12,6 +12,13 @@ services:
   rabbitmq:
     container_name: rabbitmq_pied_market
     image: rabbitmq:3.12-management
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    env_file:
+      - ./.env.prod
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSW}
@@ -30,8 +37,13 @@ services:
   pg_db:
     container_name: pg_db_pied_market
     image: postgres:16
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     env_file:
-      - ./.env
+      - ./.env.prod
     environment:
       - POSTGRES_USER=${PG_USER}
       - POSTGRES_PASSWORD=${PG_PASSWORD}
@@ -50,6 +62,8 @@ services:
     container_name: celery_worker_pied_market
     image: marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -Q extended_product_card_queue,mail_queue,file_queue
+    env_file:
+      - ./.env.prod
     environment:
       - DEPLOYED=1
       - DOCKERIZED=1
@@ -70,6 +84,8 @@ services:
     container_name: celery_beat_pied_market
     image: marketplace_pied_market
     command: celery -A core.config_dir.celery_config worker --loglevel=info -B
+    env_file:
+      - ./.env.prod
     environment:
       - DEPLOYED=1
       - DOCKERIZED=1
@@ -89,6 +105,8 @@ services:
   smtp_service:
     image: rnwood/smtp4dev
     container_name: smtp4dev_pied_market
+    env_file:
+      - ./.env.prod
     environment:
       - ServerOptions__TlsCertificateFile=${SMTP_CERT_DOCKER}
       - ServerOptions__TlsKeyFile=${SMTP_KEY_DOCKER}
@@ -101,10 +119,15 @@ services:
         ipv4_address: 172.25.0.16
 
   es01:
-    depends_on:
-      - pg_db
     container_name: es_pied_market
     image: elasticsearch:${ELASTIC_VERSION}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    env_file:
+      - ./.env.prod
     environment:
       - node.name=es01
       - discovery.type=single-node
@@ -127,6 +150,8 @@ services:
       - es01
     container_name: kibana_pied_market
     image: kibana:${ELASTIC_VERSION}
+    env_file:
+      - ./.env.prod
     environment:
       - ELASTICSEARCH_HOSTS=http://es01:${ELASTIC_PORT}
     ports:
@@ -140,13 +165,14 @@ services:
     image: marketplace_pied_market
     command: python core/main.py
     depends_on:
-      - pg_db
-      - redis
-      - es01
-      - celery_worker
-      - smtp_service
+      pg_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
     env_file:
-      - .env
+      - ./.env.prod
     environment:
       - DEPLOYED=1
       - DOCKERIZED=1
