@@ -6,4 +6,5 @@ services:
       - ./.env.prod
     volumes:
       - C:/Users/${USER}/gitlab-runner/config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: always

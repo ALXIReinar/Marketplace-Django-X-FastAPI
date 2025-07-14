@@ -56,7 +56,7 @@ services:
         ipv4_address: 172.25.0.13
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
+      - ./secrets/dumps/${CURRENT_DUMP_SQL}:/docker-entrypoint-initdb.d/marketplace_db_backup.sql
 
   celery_worker:
     container_name: celery_worker_pied_market
@@ -75,7 +75,7 @@ services:
       - redis
       - pg_db
     volumes:
-      - images:/app/core/templates/images
+      - ./images:/app/core/templates/images
     networks:
       net_con:
         ipv4_address: 172.25.0.14
@@ -138,7 +138,7 @@ services:
       - xpack.security.transport.ssl.enabled=false
     volumes:
       - esdata01:/usr/share/elasticsearch/data
-      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+      - ./secrets/create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
     ports:
       - '9200:9200'
     networks:

@@ -4,7 +4,7 @@ WORKDIR /app
 ENV PYTHONPATH=/app
 
 COPY . /app
-RUN mv /app/prj_certs/* /usr/local/share/ca-certificates/
+RUN mv /app/secrets/prj_certs/* /usr/local/share/ca-certificates/
 
 RUN update-ca-certificates
 

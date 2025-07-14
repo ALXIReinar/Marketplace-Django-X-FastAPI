@@ -22,8 +22,8 @@ encryption = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
 class AuthConfig(BaseModel):
-    private_key: Path = WORKDIR / 'keys' / 'private_jwt.pem'
-    public_key: Path = WORKDIR / 'keys' / 'public_jwt.pem'
+    private_key: Path = WORKDIR / 'secrets' / 'keys' / 'private_jwt.pem'
+    public_key: Path = WORKDIR / 'secrets' / 'keys' / 'public_jwt.pem'
     algorithm: str = 'RS256'
     ttl_aT: timedelta = timedelta(minutes=15)
     ttl_rT: timedelta = timedelta(days=30)

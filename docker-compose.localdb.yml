@@ -87,7 +87,7 @@ services:
     mem_limit: 3g
     volumes:
       - esdata01:/usr/share/elasticsearch/data
-      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+      - ./secrets/create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
     ports:
       - '9200:9200'
     networks:

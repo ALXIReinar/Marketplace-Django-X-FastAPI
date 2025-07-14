@@ -72,7 +72,7 @@ services:
         ipv4_address: 172.25.0.13
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./dumps/marketplace_backup_test.sql:/docker-entrypoint-initdb.d/test_marketplace_db_backup.sql
+      - ./secrets/test_dumps/marketplace_backup_test.sql:/docker-entrypoint-initdb.d/test_marketplace_db_backup.sql
 
   smtp_service:
     image: rnwood/smtp4dev
@@ -110,7 +110,7 @@ services:
     mem_limit: 3g
     volumes:
       - esdata01:/usr/share/elasticsearch/data
-      - ./create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
+      - ./secrets/create_new_cert_p12_elastic:/usr/share/elasticsearch/config/dev_files
     networks:
       net_con:
         ipv4_address: 172.25.0.16

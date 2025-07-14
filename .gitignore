@@ -162,6 +162,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 
 .idea/
+.env.test
 *.pem
 *.crt
 *.env
@@ -170,19 +171,14 @@ cython_debug/
 *.zip
 *.xlsx
 *.tar.gz
-.env.test
+*.b64
 images/
-keys/
 .vscode/
 .vs/
-dumps/
 pg_data/
 logs/
 rabbitmq_data/
-prj_certs/
 esdata01/
-es_certs/
-create_new_cert_p12_elastic/
-create_new_cert_p12_elastic/es_crt_util_certs/
 quick_docker_up/
 user_files_bg_dumps/
+secrets/
