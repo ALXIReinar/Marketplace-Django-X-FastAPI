@@ -1,3 +1,11 @@
+image: docker:20.10.16
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+
 stages:
   - build
   - test
@@ -9,7 +17,7 @@ build-job:
     - docker build -t marketplace_pied_market .
   rules:
     - if: '$CI_COMMIT_BRANCH == "backend"'
-    - if: '$CI_PIPELINE_SOURCE = "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
 
 test-job:
   stage: test
@@ -17,7 +25,7 @@ test-job:
     - docker compose -f docker-compose.ci_test.yml up --build --abort-on-container-exit --exit-code-from pied_market
   rules:
     - if: '$CI_COMMIT_BRANCH == "backend"'
-    - if: '$CI_PIPELINE_SOURCE = "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
 
 deploy-job:
   stage: deploy
